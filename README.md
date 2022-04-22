@@ -5,7 +5,7 @@
 ### Prerequisites
 - **System**
   - Ubuntu 20.04
-  -[ROS2 foxy
+  - ROS2 foxy
 - **Libraries**
   - OpenCV 3.2.0
   - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html)
@@ -18,7 +18,8 @@ colcon build --symlink-install
 
 ### run
 currently, I succeed to execute from binary file at 'install' folder. <br>
-The problem is that the even after sourcing bash file, the built ROS package cannout be found. I'm still tyring to resolve the issue.
+The problem is that the built ROS package cannout be found, even after sourcing setup.bash files. I'm still tyring to resolve the issue. <br>
+However, you can normally execute this package as follows (using binary file):
 ```
 $(PATH_TO_YOUR_ROS_WS)/install/vins/bin/vins_node $(PATH_TO_CONFIG.YAML)
 
