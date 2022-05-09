@@ -11,6 +11,28 @@
   - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html)
   - [Eigen-3.3.9](https://github.com/zinuok/VINS-Fusion#-eigen-1)
 
+
+### sensor setup
+- camera: Intel realsense D435i
+- IMU: Xsens
+
+#### Intel Realsense install
+- refered from [here](https://velog.io/@cjh1995-ros/ROS2-realsense-wrapper)
+- download library source file from [here](https://github.com/IntelRealSense/realsense-ros/releases)
+```
+sudo apt-get install ros-foxy-cv-bridge ros-foxy-librealsense2 ros-foxy-message-filters ros-foxy-image-transport
+sudo apt-get install -y libssl-dev libusb-1.0-0-dev pkg-config libgtk-3-dev
+sudo apt-get install -y libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
+
+mkdir build && cd build
+# (if you don't have CUDA, remove the last line)
+cmake ../ -DBUILD_EXAMPLES=true -DFORCE_LIBUVC=true -DBUILD_WITH_CUDA=true
+```
+- ROS2 package
+```
+```
+
+
 ### build
 ```
 colcon build --symlink-install && source ./install/setup.bash && source ./install/local_setup.bash
