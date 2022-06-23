@@ -41,7 +41,8 @@ colcon build --symlink-install && source ./install/setup.bash && source ./instal
 ### run
 currently, I succeed to execute from binary file at 'install' folder. <br>
 The problem is that the built ROS package cannout be found, even after sourcing setup.bash files. I'm still tyring to resolve this issue. <br>
-However, you can normally execute this package as follows (using binary file):
+However, you can normally execute this package as follows (using binary file): <br>
+(you can echo the published ros2 topic or visualzie using Rviz2)
 ```
 $(PATH_TO_YOUR_ROS_WS)/install/vins/bin/vins_node $(PATH_TO_CONFIG.YAML)
 
