@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+    <let name="rviz_config" value="$(find-pkg-share vins)/config/vins_rviz_config.rviz"/>
+    <node name="rviz2" pkg="rviz2" exec="rviz2" args="-d $(var rviz_config)"/>
+    
+</launch>
