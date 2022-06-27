@@ -18,6 +18,11 @@
 
 ### sensor setup
 - camera: Intel realsense D435i
+- using following shell script, you can install realsense SDK with ROS2 package.
+```
+chmod +x realsense_install.sh
+bash realsense_install.sh
+```
 
 
 ### build
