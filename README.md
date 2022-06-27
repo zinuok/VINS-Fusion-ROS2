@@ -3,7 +3,7 @@
 ## ROS2 version of VINS-Fusion.
 
 ### Notices
-- code has been update so that the vins package can be executed via ros2 run or ros2 launch
+- code has been updated so that the vins package can be executed via ros2 run or ros2 launch
 - but now it has dependency on Opencv 4.0.x
 
 ### Prerequisites
