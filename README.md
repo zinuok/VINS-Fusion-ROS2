@@ -12,7 +12,7 @@
   - ROS2 foxy
 - **Libraries**
   - OpenCV 4.0.x
-  - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html)
+  - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html) (you can refer [here](https://github.com/zinuok/VINS-Fusion#-ceres-solver-1); just edit 1.14.0 to 2.1.0 for install.)
   - [Eigen-3.3.9](https://github.com/zinuok/VINS-Fusion#-eigen-1)
 
 
