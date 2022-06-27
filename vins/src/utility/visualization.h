@@ -22,6 +22,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/point_stamped.h>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -32,7 +33,7 @@
 #include "../estimator/parameters.h"
 #include <fstream>
 
-extern rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odometry;
+extern rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pub_odometry;
 extern rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_path;
 // extern ros::Publisher pub_cloud, pub_map;
 extern rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_key_poses;
