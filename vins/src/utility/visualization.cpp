@@ -340,11 +340,11 @@ void pubTF(const Estimator &estimator, const std_msgs::msg::Header &header)
     correct_q = estimator.Rs[WINDOW_SIZE];
 
 
-    // cout << header.stamp.sec + header.stamp.nanosec * (1e-9) << endl;    
+    cout << "TF time: " << std::fixed << header.stamp.sec + header.stamp.nanosec * (1e-9) << endl;    
     // cout << correct_t << endl;    
     // cout << correct_q.w() << " " << correct_q.x() << " " << correct_q.y() << " " << correct_q.z() << endl;
 
-    // transform.header.stamp = header.stamp;    
+    transform.header.stamp = header.stamp;    
     transform.header.frame_id = "world";    
     transform.child_frame_id = "body";
 

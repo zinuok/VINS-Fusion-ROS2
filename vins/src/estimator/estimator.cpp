@@ -349,7 +349,10 @@ void Estimator::processMeasurements()
 
             std_msgs::msg::Header header;
             header.frame_id = "world";
-            header.stamp = rclcpp::Time(feature.first);
+            header.stamp.sec = int(feature.first);
+            header.stamp.nanosec = 1e+9 * (feature.first - int(feature.first));
+
+            // cout << "PM: " << std::fixed << feature.first << " " << int(feature.first) << feature.first - int(feature.first) << std::endl;
 
             pubOdometry(*this, header);
             // cout << "5-1" << endl;
@@ -451,7 +454,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 {
 
 
-    cout << std::fixed << header << endl;
+    // cout << "PI: " << std::fixed << header << endl;
 
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
