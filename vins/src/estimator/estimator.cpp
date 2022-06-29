@@ -347,10 +347,12 @@ void Estimator::processMeasurements()
 
             printStatistics(*this, 0);
 
+            auto t_cur = rclcpp::Clock(RCL_ROS_TIME).now();
+
             std_msgs::msg::Header header;
             header.frame_id = "world";
-            header.stamp.sec = int(feature.first);
-            header.stamp.nanosec = 1e+9 * (feature.first - int(feature.first));
+            header.stamp.sec = t_cur.seconds();
+            header.stamp.nanosec = t_cur.nanoseconds();
 
             // cout << "PM: " << std::fixed << feature.first << " " << int(feature.first) << feature.first - int(feature.first) << std::endl;
 
