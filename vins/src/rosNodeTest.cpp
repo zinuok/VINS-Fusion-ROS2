@@ -241,6 +241,7 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
 	auto n = rclcpp::Node::make_shared("vins_estimator");
+
     // ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
     if(argc != 2)
@@ -253,6 +254,8 @@ int main(int argc, char **argv)
 
     string config_file = argv[1];
     printf("config_file: %s\n", argv[1]);
+
+    estimator.node = n;
 
     readParameters(config_file);
     estimator.setParameter();

@@ -198,7 +198,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
         mBuf.unlock();
         TicToc processTime;
         processMeasurements();
-        printf("process time: %f\n", processTime.toc());
+        // printf("process time: %f\n", processTime.toc());
     }
     
 }
@@ -347,12 +347,18 @@ void Estimator::processMeasurements()
 
             printStatistics(*this, 0);
 
-            auto t_cur = rclcpp::Clock(RCL_ROS_TIME).now();
+            double sec_nanosec = rclcpp::Clock(RCL_ROS_TIME).now().seconds();
+            int sec = int(sec_nanosec);
+            int nanosec = int(1e+9 * (sec_nanosec - sec));
+
+            // cout << sec << "  " << nanosec << endl;
+
 
             std_msgs::msg::Header header;
             header.frame_id = "world";
-            header.stamp.sec = t_cur.seconds();
-            header.stamp.nanosec = t_cur.nanoseconds();
+            header.stamp.sec = sec;
+            header.stamp.nanosec = nanosec;
+
 
             // cout << "PM: " << std::fixed << feature.first << " " << int(feature.first) << feature.first - int(feature.first) << std::endl;
 
@@ -592,7 +598,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         // optimization
         TicToc t_solve;
         optimization();
-        ROS_INFO("solver costs: %f [ms]", t_solve.toc());
+        // ROS_INFO("solver costs: %f [ms]", t_solve.toc());
 
         set<int> removeIndex;
         outliersRejection(removeIndex);

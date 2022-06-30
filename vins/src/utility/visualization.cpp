@@ -179,9 +179,21 @@ void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header
               << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
-        printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.sec + header.stamp.nanosec * (1e-9),
-                                                          tmp_T.x(), tmp_T.y(), tmp_T.z(),
-                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
+
+
+        estimator.node->get_logger();
+        auto clk = rclcpp::Clock();
+        // auto &clk = estimator.node->get_clock();
+        RCLCPP_INFO_THROTTLE(estimator.node->get_logger(),
+                            clk,
+                            5000,
+                            "time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.sec + header.stamp.nanosec * (1e-9),
+                                                                        tmp_T.x(), tmp_T.y(), tmp_T.z(),
+                                                                        tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
+
+        // printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.sec + header.stamp.nanosec * (1e-9),
+    //                                                                     tmp_T.x(), tmp_T.y(), tmp_T.z(),
+    //                                                                     tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
     }
 }
 
@@ -340,7 +352,7 @@ void pubTF(const Estimator &estimator, const std_msgs::msg::Header &header)
     correct_q = estimator.Rs[WINDOW_SIZE];
 
 
-    cout << "TF time: " << std::fixed << header.stamp.sec + header.stamp.nanosec * (1e-9) << endl;    
+    // cout << "TF time: " << std::fixed << header.stamp.sec + header.stamp.nanosec * (1e-9) << endl;    
     // cout << correct_t << endl;    
     // cout << correct_q.w() << " " << correct_q.x() << " " << correct_q.y() << " " << correct_q.z() << endl;
 

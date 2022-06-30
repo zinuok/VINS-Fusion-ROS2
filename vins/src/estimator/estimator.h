@@ -178,4 +178,6 @@ class Estimator
 
     bool initFirstPoseFlag;
     bool initThreadFlag;
+
+    rclcpp::Node::SharedPtr node;
 };
