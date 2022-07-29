@@ -19,19 +19,22 @@
 ### sensor setup
 - camera: Intel realsense D435i
 - using following shell script, you can install realsense SDK with ROS2 package.
-```
+```bash
 chmod +x realsense_install.sh
 bash realsense_install.sh
 ```
 
 
 ### build
-```
+```bash
+cd $(PATH_TO_YOUR_ROS2_WS]/src
+git clone https://github.com/zinuok/VINS-Fusion-ROS2
+cd ..
 colcon build --symlink-install && source ./install/setup.bash && source ./install/local_setup.bash
 ```
 
 ### run
-```
+```bash
 # vins
 ros2 run vins $(PATH_TO_YOUR_VINS_CONFIG_FILE)
 
@@ -45,12 +48,12 @@ Unfortunately, you can't just play back the bag file recorded at ROS1.
 This is because the filesystem structure for bag file has been changed significantly.
 The bag file at ROS2 needs the folder with some meta data for each bag file, which is done using following commands.
 - you have to install [this pkg](https://gitlab.com/ternaris/rosbags)
-```
+```bash
 pip install rosbags
 ```
 
 - run
-```
+```bash
 export PATH=$PATH:~/.local/bin
 rosbags-convert foo.bag --dst /path/to/bar
 ```
