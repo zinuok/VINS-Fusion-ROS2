@@ -16,7 +16,7 @@ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A
 sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
 
 # Install the libraries (see section below if upgrading packages):
-sudo apt-get -y install librealsense2-dkms && sudo apt-get -y install librealsense2-utils
+#sudo apt-get -y install librealsense2-dkms && sudo apt-get -y install librealsense2-utils
 
 # Optionally install the developer and debug packages:
 sudo apt-get install -y librealsense2-dev && sudo apt-get install -y librealsense2-dbg
