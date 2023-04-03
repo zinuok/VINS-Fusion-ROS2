@@ -4,14 +4,16 @@
 
 ### Notices
 - code has been updated so that the vins package can be executed via ros2 run or ros2 launch
-- but now it has dependency on Opencv 4.0.x
+- but Rviz config cannot be saved due to some issue.. still fixing
+- GPU enable/disalbe features also have been added: refer [EuRoC config](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/config/euroc/euroc_stereo_imu_config.yaml#L19-L21)
 
 ### Prerequisites
 - **System**
   - Ubuntu 20.04
   - ROS2 foxy
 - **Libraries**
-  - OpenCV 4.0.x
+  - OpenCV 3.4.1 (with CUDA enabled option)
+  - OpenCV 3.4.1-contrib
   - [Ceres Solver-2.1.0](http://ceres-solver.org/installation.html) (you can refer [here](https://github.com/zinuok/VINS-Fusion#-ceres-solver-1); just edit 1.14.0 to 2.1.0 for install.)
   - [Eigen-3.3.9](https://github.com/zinuok/VINS-Fusion#-eigen-1)
 
