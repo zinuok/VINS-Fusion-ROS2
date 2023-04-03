@@ -33,6 +33,10 @@ extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
 extern int ESTIMATE_EXTRINSIC;
 
+extern int USE_GPU;
+extern int USE_GPU_ACC_FLOW;
+extern int USE_GPU_CERES;
+
 extern double ACC_N, ACC_W;
 extern double GYR_N, GYR_W;
 
