@@ -1,3 +1,8 @@
+# DEPRECATED !!! PLEASE USE THE [MAIN BRANCH](https://github.com/zinuok/VINS-Fusion-ROS2)
+
+
+
+
 # VINS-Fusion
 
 ## ROS2 version of VINS-Fusion.
