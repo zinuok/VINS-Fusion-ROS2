@@ -5,7 +5,7 @@
 ### Notices
 - code has been updated so that the vins package can be executed via ros2 run or ros2 launch
 - but Rviz config cannot be saved due to some issue.. still fixing
-- GPU enable/disalbe features also have been added: refer [EuRoC config](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/config/euroc/euroc_stereo_imu_config.yaml#L19-L21)
+- GPU enable/disable features also have been added: refer [EuRoC config](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/config/euroc/euroc_stereo_imu_config.yaml#L19-L21)
 
 ### Prerequisites
 - **System**
