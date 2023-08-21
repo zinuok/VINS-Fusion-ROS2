@@ -53,7 +53,12 @@ void registerPub(rclcpp::Node::SharedPtr n)
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t)
 {
     nav_msgs::msg::Odometry odometry;
-    odometry.header.stamp = rclcpp::Time(t);
+
+    int sec_ts = (int)t;
+    uint nsec_ts = (uint)((t - sec_ts) * 1e9);
+    odometry.header.stamp.sec = sec_ts;
+    odometry.header.stamp.nanosec = nsec_ts;
+
     odometry.header.frame_id = "world";
     odometry.pose.pose.position.x = P.x();
     odometry.pose.pose.position.y = P.y();
@@ -72,7 +77,12 @@ void pubTrackImage(const cv::Mat &imgTrack, const double t)
 {
     std_msgs::msg::Header header;
     header.frame_id = "world";
-    header.stamp = rclcpp::Time(t);
+
+    int sec_ts = (int)t;
+    uint nsec_ts = (uint)((t - sec_ts) * 1e9);
+    header.stamp.sec = sec_ts;
+    header.stamp.nanosec = nsec_ts;
+
     // sensor_msgs::msg::ImagePtr 
     sensor_msgs::msg::Image::SharedPtr imgTrackMsg = cv_bridge::CvImage(header, "bgr8", imgTrack).toImageMsg();
     pub_image_track->publish(*imgTrackMsg);
@@ -472,7 +482,12 @@ void pubKeyframe(const Estimator &estimator)
         Quaterniond R = Quaterniond(estimator.Rs[i]);
 
         nav_msgs::msg::Odometry odometry;
-        odometry.header.stamp = rclcpp::Time(estimator.Headers[WINDOW_SIZE - 2]);
+
+        int sec_ts = (int)estimator.Headers[WINDOW_SIZE - 2];
+        uint nsec_ts = (uint)((estimator.Headers[WINDOW_SIZE - 2] - sec_ts) * 1e9);
+        odometry.header.stamp.sec = sec_ts;
+        odometry.header.stamp.nanosec = nsec_ts;
+
         odometry.header.frame_id = "world";
         odometry.pose.pose.position.x = P.x();
         odometry.pose.pose.position.y = P.y();
@@ -487,7 +502,12 @@ void pubKeyframe(const Estimator &estimator)
 
 
         sensor_msgs::msg::PointCloud point_cloud;
-        point_cloud.header.stamp = rclcpp::Time(estimator.Headers[WINDOW_SIZE - 2]);
+
+        sec_ts = (int)estimator.Headers[WINDOW_SIZE - 2];
+        nsec_ts = (uint)((estimator.Headers[WINDOW_SIZE - 2] - sec_ts) * 1e9);
+        point_cloud.header.stamp.sec = sec_ts;
+        point_cloud.header.stamp.nanosec = nsec_ts;
+
         point_cloud.header.frame_id = "world";
         for (auto &it_per_id : estimator.f_manager.feature)
         {

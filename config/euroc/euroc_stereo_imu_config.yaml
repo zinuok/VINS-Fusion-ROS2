@@ -16,9 +16,9 @@ image_width: 752
 image_height: 480
 
 # GPU acceleration
-use_gpu: 1
-use_gpu_acc_flow: 1
-use_gpu_ceres: 1
+use_gpu         : 0
+use_gpu_acc_flow: 0
+use_gpu_ceres   : 0
    
 
 # Extrinsic parameter between IMU and Camera.

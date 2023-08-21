@@ -349,7 +349,11 @@ void Estimator::processMeasurements()
 
             std_msgs::msg::Header header;
             header.frame_id = "world";
-            header.stamp = rclcpp::Time(feature.first);
+
+            int sec_ts = (int)feature.first;
+            uint nsec_ts = (uint)((feature.first - sec_ts) * 1e9);
+            header.stamp.sec = sec_ts;
+            header.stamp.nanosec = nsec_ts;
 
             pubOdometry(*this, header);
             // cout << "5-1" << endl;

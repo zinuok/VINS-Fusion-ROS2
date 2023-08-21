@@ -14,6 +14,11 @@ cam0_calib: "left.yaml"
 cam1_calib: "right.yaml"
 image_width: 640
 image_height: 480
+
+# GPU acceleration
+use_gpu         : 0
+use_gpu_acc_flow: 0
+use_gpu_ceres   : 0
    
 
 # Extrinsic parameter between IMU and Camera.

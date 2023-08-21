@@ -159,7 +159,12 @@ int main(int argc, char** argv)
 
 			sensor_msgs::msg::NavSatFix gps_position;
 			gps_position.header.frame_id = "NED";
-			gps_position.header.stamp = rclcpp::Time(imgTime);
+
+            int sec_ts = (int)imgTime;
+            uint nsec_ts = (uint)((imgTime - sec_ts) * 1e9);
+            gps_position.header.stamp.sec = sec_ts;
+            gps_position.header.stamp.nanosec = nsec_ts;
+
 			gps_position.status.status = navstat;
 			gps_position.status.service = numsats;
 			gps_position.latitude  = lat;

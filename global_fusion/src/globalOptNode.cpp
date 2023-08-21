@@ -38,7 +38,12 @@ void publish_car_model(double t, Eigen::Vector3d t_w_car, Eigen::Quaterniond q_w
 {
     visualization_msgs::msg::MarkerArray markerArray_msg;
     visualization_msgs::msg::Marker car_mesh;
-    car_mesh.header.stamp = rclcpp::Time(t);
+
+    int sec_ts = (int)t;
+    uint nsec_ts = (uint)((t - sec_ts) * 1e9);
+    car_mesh.header.stamp.sec = sec_ts;
+    car_mesh.header.stamp.nanosec = nsec_ts;
+
     car_mesh.header.frame_id = "world";
     car_mesh.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
     car_mesh.action = visualization_msgs::msg::Marker::ADD;

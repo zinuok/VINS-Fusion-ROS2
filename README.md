@@ -6,10 +6,9 @@
 - code has been updated so that the vins package can be executed via ros2 run or ros2 launch
 - but Rviz config cannot be saved due to some issue.. still fixing
 - GPU enable/disable features also have been added: refer [EuRoC config](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/config/euroc/euroc_stereo_imu_config.yaml#L19-L21) (refered from [here](https://github.com/pjrambo/VINS-Fusion-gpu) and [here](https://github.com/pjrambo/VINS-Fusion-gpu/issues/33#issuecomment-1097642597))
-  - The GPU version has some CUDA library [dependencies: OpenCV with CUDA](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/vins/src/featureTracker/feature_tracker.h#L21-L23). Therefore, if it is a bothersome to you and only need the cpu version, use the following commit version: .
+  - The GPU version has some CUDA library [dependencies: OpenCV with CUDA](https://github.com/zinuok/VINS-Fusion-ROS2/blob/main/vins/src/featureTracker/feature_tracker.h#L21-L23). Therefore, if it is a bothersome to you and only need the cpu version, please comment the following compiler macro at line 14 in the 'feature_tracker.h': .
   ```bash
-  cd $(YOUR_LOCAL_PATH_TO_THIS_REPO)
-  git checkout b02d4154e3d72fcd674f62a6347770cfc546fe48
+  #define GPU_MODE 1
   ```
 
 ### Prerequisites
