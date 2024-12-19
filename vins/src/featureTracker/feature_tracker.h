@@ -11,7 +11,7 @@
 
 #pragma once
 
-#define GPU_MODE 1
+// #define GPU_MODE 1
 
 
 #include <cstdio>
