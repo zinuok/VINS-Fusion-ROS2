@@ -203,6 +203,28 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     
 }
 
+void Estimator::inputFrame2(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>>& frame) {
+    inputImageCnt++;
+    std::cout << "ça run inputFrame2 ici" << std::endl;
+    
+    if(MULTIPLE_THREAD) {     
+        if(inputImageCnt % 2 == 0) {
+            std::cout << "ça rentre dans le multiple thread de inputFrame2 ici" << std::endl;
+            mBuf.lock();
+            featureBuf.push(make_pair(t, frame));
+            mBuf.unlock();
+        }
+    }
+    else {
+        mBuf.lock();
+        featureBuf.push(make_pair(t, frame));
+        mBuf.unlock();
+        std::cout << "ça a process la mesure ici" << std::endl;
+        processMeasurements();
+    }
+}
+
+
 void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity)
 {
     mBuf.lock();

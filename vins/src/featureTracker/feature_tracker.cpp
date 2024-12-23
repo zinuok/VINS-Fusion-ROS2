@@ -95,7 +95,6 @@ void FeatureTracker::addPoints()
 
 double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
 {
-    //printf("pt1: %f %f pt2: %f %f\n", pt1.x, pt1.y, pt2.x, pt2.y);
     double dx = pt1.x - pt2.x;
     double dy = pt1.y - pt2.y;
     return sqrt(dx * dx + dy * dy);
@@ -109,14 +108,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
     row = cur_img.rows;
     col = cur_img.cols;
     cv::Mat rightImg = _img1;
-    /*
-    {
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
-        clahe->apply(cur_img, cur_img);
-        if(!rightImg.empty())
-            clahe->apply(rightImg, rightImg);
-    }
-    */
     cur_pts.clear();
 
     if (prev_pts.size() > 0)
@@ -164,92 +155,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             }
             // printf("temporal optical flow costs: %fms\n", t_o.toc());
         }
-#ifdef GPU_MODE
-        else
-        {
-            TicToc t_og;
-            cv::cuda::GpuMat prev_gpu_img(prev_img);
-            cv::cuda::GpuMat cur_gpu_img(cur_img);
-            cv::cuda::GpuMat prev_gpu_pts(prev_pts);
-            cv::cuda::GpuMat cur_gpu_pts(cur_pts);
-            cv::cuda::GpuMat gpu_status;
-            if(hasPrediction)
-            {
-                cur_gpu_pts = cv::cuda::GpuMat(predict_pts);
-                cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                cv::Size(21, 21), 1, 30, true);
-                d_pyrLK_sparse->calc(prev_gpu_img, cur_gpu_img, prev_gpu_pts, cur_gpu_pts, gpu_status);
-                
-                vector<cv::Point2f> tmp_cur_pts(cur_gpu_pts.cols);
-                cur_gpu_pts.download(tmp_cur_pts);
-                cur_pts = tmp_cur_pts;
-
-                vector<uchar> tmp_status(gpu_status.cols);
-                gpu_status.download(tmp_status);
-                status = tmp_status;
-
-                int succ_num = 0;
-                for (size_t i = 0; i < tmp_status.size(); i++)
-                {
-                    if (tmp_status[i])
-                        succ_num++;
-                }
-                if (succ_num < 10)
-                {
-                    cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                    cv::Size(21, 21), 3, 30, false);
-                    d_pyrLK_sparse->calc(prev_gpu_img, cur_gpu_img, prev_gpu_pts, cur_gpu_pts, gpu_status);
-
-                    vector<cv::Point2f> tmp1_cur_pts(cur_gpu_pts.cols);
-                    cur_gpu_pts.download(tmp1_cur_pts);
-                    cur_pts = tmp1_cur_pts;
-
-                    vector<uchar> tmp1_status(gpu_status.cols);
-                    gpu_status.download(tmp1_status);
-                    status = tmp1_status;
-                }
-            }
-            else
-            {
-                cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                cv::Size(21, 21), 3, 30, false);
-                d_pyrLK_sparse->calc(prev_gpu_img, cur_gpu_img, prev_gpu_pts, cur_gpu_pts, gpu_status);
-
-                vector<cv::Point2f> tmp1_cur_pts(cur_gpu_pts.cols);
-                cur_gpu_pts.download(tmp1_cur_pts);
-                cur_pts = tmp1_cur_pts;
-
-                vector<uchar> tmp1_status(gpu_status.cols);
-                gpu_status.download(tmp1_status);
-                status = tmp1_status;
-            }
-            if(FLOW_BACK)
-            {
-                cv::cuda::GpuMat reverse_gpu_status;
-                cv::cuda::GpuMat reverse_gpu_pts = prev_gpu_pts;
-                cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                cv::Size(21, 21), 1, 30, true);
-                d_pyrLK_sparse->calc(cur_gpu_img, prev_gpu_img, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
-
-                vector<cv::Point2f> reverse_pts(reverse_gpu_pts.cols);
-                reverse_gpu_pts.download(reverse_pts);
-
-                vector<uchar> reverse_status(reverse_gpu_status.cols);
-                reverse_gpu_status.download(reverse_status);
-
-                for(size_t i = 0; i < status.size(); i++)
-                {
-                    if(status[i] && reverse_status[i] && distance(prev_pts[i], reverse_pts[i]) <= 0.5)
-                    {
-                        status[i] = 1;
-                    }
-                    else
-                        status[i] = 0;
-                }
-            }
-            // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
-        }
-#endif
     
         for (int i = 0; i < int(cur_pts.size()); i++)
             if (status[i] && !inBorder(cur_pts[i]))
@@ -295,39 +200,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             // sum_n += n_pts.size();
             // printf("total point from non-gpu: %d\n",sum_n);
         }
-#ifdef GPU_MODE
-        // ROS_DEBUG("detect feature costs: %fms", t_t.toc());
-        // printf("good feature to track costs: %fms\n", t_t.toc());
-        else
-        {
-            if (n_max_cnt > 0)
-            {
-                if(mask.empty())
-                    cout << "mask is empty " << endl;
-                if (mask.type() != CV_8UC1)
-                    cout << "mask type wrong " << endl;
-                TicToc t_g;
-                cv::cuda::GpuMat cur_gpu_img(cur_img);
-                cv::cuda::GpuMat d_prevPts;
-                TicToc t_gg;
-                cv::cuda::GpuMat gpu_mask(mask);
-                // printf("gpumat cost: %fms\n",t_gg.toc());
-                cv::Ptr<cv::cuda::CornersDetector> detector = cv::cuda::createGoodFeaturesToTrackDetector(cur_gpu_img.type(), MAX_CNT - cur_pts.size(), 0.01, MIN_DIST);
-                // cout << "new gpu points: "<< MAX_CNT - cur_pts.size()<<endl;
-                detector->detect(cur_gpu_img, d_prevPts, gpu_mask);
-                // std::cout << "d_prevPts size: "<< d_prevPts.size()<<std::endl;
-                if(!d_prevPts.empty())
-                    n_pts = cv::Mat_<cv::Point2f>(cv::Mat(d_prevPts));
-                else
-                    n_pts.clear();
-                // sum_n += n_pts.size();
-                // printf("total point from gpu: %d\n",sum_n);
-                // printf("gpu good feature to track cost: %fms\n", t_g.toc());
-            }
-            else 
-                n_pts.clear();
-        }
-#endif
 
         ROS_DEBUG("add feature begins");
         TicToc t_a;
@@ -372,53 +244,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
                 }
                 // printf("left right optical flow cost %fms\n",t_check.toc());
             }
-#ifdef GPU_MODE
-            else
-            {
-                TicToc t_og1;
-                cv::cuda::GpuMat cur_gpu_img(cur_img);
-                cv::cuda::GpuMat right_gpu_Img(rightImg);
-                cv::cuda::GpuMat cur_gpu_pts(cur_pts);
-                cv::cuda::GpuMat cur_right_gpu_pts;
-                cv::cuda::GpuMat gpu_status;
-                cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                cv::Size(21, 21), 3, 30, false);
-                d_pyrLK_sparse->calc(cur_gpu_img, right_gpu_Img, cur_gpu_pts, cur_right_gpu_pts, gpu_status);
 
-                vector<cv::Point2f> tmp_cur_right_pts(cur_right_gpu_pts.cols);
-                cur_right_gpu_pts.download(tmp_cur_right_pts);
-                cur_right_pts = tmp_cur_right_pts;
-
-                vector<uchar> tmp_status(gpu_status.cols);
-                gpu_status.download(tmp_status);
-                status = tmp_status;
-
-                if(FLOW_BACK)
-                {   
-                    cv::cuda::GpuMat reverseLeft_gpu_Pts;
-                    cv::cuda::GpuMat status_gpu_RightLeft;
-                    cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-                    cv::Size(21, 21), 3, 30, false);
-                    d_pyrLK_sparse->calc(right_gpu_Img, cur_gpu_img, cur_right_gpu_pts, reverseLeft_gpu_Pts, status_gpu_RightLeft);
-
-                    vector<cv::Point2f> tmp_reverseLeft_Pts(reverseLeft_gpu_Pts.cols);
-                    reverseLeft_gpu_Pts.download(tmp_reverseLeft_Pts);
-                    reverseLeftPts = tmp_reverseLeft_Pts;
-
-                    vector<uchar> tmp1_status(status_gpu_RightLeft.cols);
-                    status_gpu_RightLeft.download(tmp1_status);
-                    statusRightLeft = tmp1_status;
-                    for(size_t i = 0; i < status.size(); i++)
-                    {
-                        if(status[i] && statusRightLeft[i] && inBorder(cur_right_pts[i]) && distance(cur_pts[i], reverseLeftPts[i]) <= 0.5)
-                            status[i] = 1;
-                        else
-                            status[i] = 0;
-                    }
-                }
-                // printf("gpu left right optical flow cost %fms\n",t_og1.toc());
-            }
-#endif
             ids_right = ids;
             reduceVector(cur_right_pts, status);
             reduceVector(ids_right, status);
@@ -493,6 +319,9 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             featureFrame[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
         }
     }
+    // std::cout << "featureFrame: " << mapToString(featureFrame) << std::endl;
+
+
 
     //printf("feature track whole time %f\n", t_r.toc());
     return featureFrame;
@@ -675,18 +504,6 @@ void FeatureTracker::drawTrack(const cv::Mat &imLeft, const cv::Mat &imRight,
             cv::arrowedLine(imTrack, curLeftPts[i], mapIt->second, cv::Scalar(0, 255, 0), 1, 8, 0, 0.2);
         }
     }
-
-    //draw prediction
-    /*
-    for(size_t i = 0; i < predict_pts_debug.size(); i++)
-    {
-        cv::circle(imTrack, predict_pts_debug[i], 2, cv::Scalar(0, 170, 255), 2);
-    }
-    */
-    //printf("predict pts size %d \n", (int)predict_pts_debug.size());
-
-    //cv::Mat imCur2Compress;
-    //cv::resize(imCur2, imCur2Compress, cv::Size(cols, rows / 2));
 }
 
 

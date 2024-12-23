@@ -54,11 +54,11 @@ class FeatureTracker(Node):
         self.get_logger().info("the device connected is %s" % self.device)
 
         # Configuration de l'extracteur et du matcher
-        self.extractor_max_num_keypoints = 700
+        self.extractor_max_num_keypoints = 300
         self.extractor = SuperPoint(max_num_keypoints=self.extractor_max_num_keypoints, nms_radius=4).eval().to(self.device)
         self.matcher = LightGlue(features='superpoint').eval().to(self.device)
 
-        self.target_n_features = 700
+        self.target_n_features = 300
         self.img_h = -1
         self.img_w = -1
 

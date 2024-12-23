@@ -57,6 +57,7 @@ class Estimator
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header);
     void processMeasurements();
     void changeSensorType(int use_imu, int use_stereo);
+    void inputFrame2(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>>& frame);
 
     // internal
     void clearState();
