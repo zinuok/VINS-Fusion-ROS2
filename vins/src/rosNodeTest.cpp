@@ -70,7 +70,15 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBuffersToFeature
 
         featureFrame[feature_id].emplace_back(1, xyz_uv_velocity);
     }
-    
+    for(auto& feature : featureFrame) {
+        std::cout << "Feature ID: " << feature.first << std::endl;
+        for(auto& frame : feature.second) {
+            std::cout << "Camera ID: " << frame.first << ", ";
+            std::cout << "XYZ: " << frame.second(0) << ", " << frame.second(1) << ", " << frame.second(2) << ", ";
+            std::cout << "UV: " << frame.second(3) << ", " << frame.second(4) << ", ";
+            std::cout << "Velocity: " << frame.second(5) << ", " << frame.second(6) << std::endl;
+        }
+    }
     return featureFrame;
 }
 
@@ -209,7 +217,7 @@ void sync_process() {
                 double time1 = feature1_buf.front()->header.stamp.sec + 
                              feature1_buf.front()->header.stamp.nanosec * (1e-9);
                 
-                if(abs(time0 - time1) < 0.05) {
+                if(abs(time0 - time1) < 0.06) {
                     time = time0;
                     auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
                     // std::cout << "Frame : ";

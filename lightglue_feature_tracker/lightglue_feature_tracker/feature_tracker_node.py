@@ -54,13 +54,99 @@ class FeatureTracker(Node):
         self.get_logger().info("the device connected is %s" % self.device)
 
         # Configuration de l'extracteur et du matcher
-        self.extractor_max_num_keypoints = 300
+        self.extractor_max_num_keypoints =5
         self.extractor = SuperPoint(max_num_keypoints=self.extractor_max_num_keypoints, nms_radius=4).eval().to(self.device)
         self.matcher = LightGlue(features='superpoint').eval().to(self.device)
 
-        self.target_n_features = 300
+        self.target_n_features = 5
         self.img_h = -1
         self.img_w = -1
+
+    # def filter_keypoints_voxelgrid(self, keypoints, voxel_size):
+    #     """
+    #     Filtre les keypoints en utilisant un voxel grid avec cKDTree de scipy.
+        
+    #     :param keypoints: Liste de points d'intérêt sous forme de coordonnées (x, y).
+    #     :param voxel_size: Taille du voxel pour la grille (ex. taille de la cellule).
+    #     :return: Liste de keypoints filtrés.
+    #     """
+        
+    #     # Conversion des keypoints en un array NumPy
+    #     keypoints_array = np.array(keypoints)
+        
+    #     # Calcul des indices des voxels pour chaque point
+    #     voxels = np.floor(keypoints_array / voxel_size).astype(int)
+        
+    #     # Création d'un cKDTree pour trouver les voisins dans l'espace des voxels
+    #     tree = cKDTree(voxels)
+        
+    #     # Liste des keypoints filtrés
+    #     filtered_keypoints = []
+        
+    #     # Set pour vérifier les voxels déjà visités
+    #     seen_voxels = set()
+        
+    #     # On parcourt les keypoints et on ne garde qu'un seul point par voxel
+    #     for i, voxel in enumerate(voxels):
+    #         if tuple(voxel) not in seen_voxels:
+    #             filtered_keypoints.append(keypoints[i])
+    #             seen_voxels.add(tuple(voxel))
+        
+    #     return filtered_keypoints
+
+
+    def filter_keypoints_voxelgrid(self, features):
+        points_2d = features['keypoints'][0].detach().cpu().numpy()
+        # print(features['keypoints'][0][:10])
+        scores = features['keypoint_scores'][0].detach().cpu().numpy()
+        tree = cKDTree(points_2d)
+        cell_size = 30
+        p_ids_out = []
+        for x in range(0, self.img_w, cell_size):
+            for y in range(0, self.img_h, cell_size):
+                cell_center = [x+cell_size / 2, y+cell_size / 2]
+                # print("center", cell_center)
+                p_ids = tree.query_ball_point(cell_center, cell_size * 1.41, p=2)
+                # print("candidates:")
+                # print(points_2d[p_ids], p_ids)
+                score_max = -1
+                p_id_max = -1
+                # print(p_ids)
+                for p_id in p_ids:
+                    score = scores[p_id]
+                    if score > score_max:
+                        score_max = score
+                        p_id_max = p_id
+                if p_id_max > -1:
+                    p_ids_out.append(p_id_max)
+                    # print("using", p_id_max)
+
+
+        p_ids_out = np.unique(p_ids_out)
+
+        features_out = {
+            'keypoints': None,
+            'keypoint_scores': None,
+            'descriptors': None,
+            'image_size': torch.clone(features['image_size']).detach().to(self.device),
+        }
+        for _iv in [
+            ("keypoints", features['keypoints'][0]), 
+            ("keypoint_scores", features['keypoint_scores'][0]), 
+            ("descriptors", features['descriptors'][0])
+            ]:
+            _i, _vector = _iv
+                
+            _vector_out = []
+            _vector_np = _vector.cpu().detach().numpy()
+            for p_id in p_ids_out:
+                _vector_out.append(_vector_np[p_id])
+
+            _vector_out = torch.from_numpy(np.array(_vector_out))
+            _vector = _vector_out
+            
+            features_out[_i] = torch.unsqueeze(_vector_out, 0).to(self.device)
+        return features_out
 
     def load_camera_config(self, cfg_path):
         self.get_logger().info("[feature_tracker] loading config from %s" % cfg_path)
@@ -94,6 +180,87 @@ class FeatureTracker(Node):
         else:
             raise ValueError(f'Not an image: {image.shape}')
         return torch.tensor(image / 255., dtype=torch.float)
+
+    def filter_keypoints_score(self, features):
+        self.get_logger().info("[feature_tracker] filtering keypoints...")
+        features_out = {
+            'keypoints': None,
+            'keypoint_scores': None,
+            'descriptors': None,
+            'image_size': torch.clone(features['image_size']).detach().to(self.device),
+        }
+        for _iv in [
+            ("keypoints", features['keypoints'][0]), 
+            ("keypoint_scores", features['keypoint_scores'][0]), 
+            ("descriptors", features['descriptors'][0])
+            ]:
+            _i, _vector = _iv
+                
+            _vector_out = []
+            _vector_np = _vector.cpu().detach().numpy()
+            for i in range(len(_vector_np)):
+                if features['keypoint_scores'][0][i] >= 0.1:
+                    _vector_out.append(_vector_np[i])
+
+            _vector_out = torch.from_numpy(np.array(_vector_out))
+            _vector = _vector_out
+            
+            features_out[_i] = torch.unsqueeze(_vector_out, 0).to(self.device)
+        print("begin size: %d" % self.get_length(features))
+        print("final size: %d" % self.get_length(features_out))
+        return features_out
+
+    def filter_matches_voxelgrid(self, matches, scores, points_curr_detected):
+        matches_np = matches.detach().cpu().numpy()
+        points_curr = points_curr_detected[matches_np[..., 1]]
+        tree = cKDTree(points_curr)
+        cell_size = 40
+        p_ids_out = []
+        cnt_plot = 0
+        points_to_plot = np.zeros((2000,3)).astype(int)
+        for x in range(0, self.img_w, cell_size):
+            for y in range(0, self.img_h, cell_size):
+                cell_center = [x+cell_size / 2, y+cell_size / 2]
+                # print("center", cell_center)
+                p_ids = tree.query_ball_point(cell_center, cell_size * 1.41, p=2)
+                # print("candidates:")
+                # print(points_2d[p_ids], p_ids)
+                score_max = -1
+                p_id_max = -1
+                # print(p_ids)
+                for p_id in p_ids:
+                    feat_id = int(self.feat_prev_order_to_id[matches[p_id][0]])
+                    match_score = scores[p_id]
+                    if match_score < 0.8:
+                        continue
+
+                    '''
+                    # if feature is known from previous frame(s)
+                    if feat_id > -1:
+                        self.feat_curr_order_to_id[matches[p_id][1]] = feat_id
+                        self.feat_obs_cnt[feat_id] += 1
+                    # else, add new feature
+                    else: 
+                        self.cnt_id += 1
+                        if self.cnt_id > len(self.feat_obs_cnt) - 1:
+                            self.feat_obs_cnt += [0] * 1000
+                        feat_id = self.cnt_id
+                        self.feat_curr_order_to_id[matches[p_id][1]] = feat_id
+                        self.feat_obs_cnt[feat_id] = 1
+                    '''
+
+
+                    score = self.feat_obs_cnt[feat_id]
+                    if score > score_max:
+                        score_max = score
+                        p_id_max = p_id
+                if p_id_max > -1:
+                    p_ids_out.append(p_id_max)
+                    # print("using", p_id_max)
+
+
+        matches_out = matches_np[p_ids_out]
+        return matches_out
 
     def undistort_keypoints(self, keypoints):
         points = cv2.undistortPoints(keypoints, self.K, self.dist_coeffs, None, None)
@@ -200,6 +367,10 @@ class FeatureTracker(Node):
             # Extract features from both images
             feats0 = self.extractor.extract(img_torch0)
             feats1 = self.extractor.extract(img_torch1)
+
+            # Apply the voxelgrid filtering to reduce keypoints
+            feats0 = self.filter_keypoints_voxelgrid(feats0)
+            feats1 = self.filter_keypoints_voxelgrid(feats1)
 
             # Match features
             matches01 = self.matcher({"image0": feats0, "image1": feats1})

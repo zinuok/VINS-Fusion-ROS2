@@ -176,6 +176,16 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
         featureFrame = featureTracker.trackImage(t, _img, _img1);
     //printf("featureTracker time: %f\n", featureTrackerTime.toc());
 
+    for(auto& feature : featureFrame) {
+        std::cout << "Feature ID: " << feature.first << std::endl;
+        for(auto& frame : feature.second) {
+            std::cout << "Camera ID: " << frame.first << ", ";
+            std::cout << "XYZ: " << frame.second(0) << ", " << frame.second(1) << ", " << frame.second(2) << ", ";
+            std::cout << "UV: " << frame.second(3) << ", " << frame.second(4) << ", ";
+            std::cout << "Velocity: " << frame.second(5) << ", " << frame.second(6) << std::endl;
+        }
+    }
+
     if (SHOW_TRACK)
     {
         cv::Mat imgTrack = featureTracker.getTrackImage();
