@@ -70,15 +70,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBuffersToFeature
 
         featureFrame[feature_id].emplace_back(1, xyz_uv_velocity);
     }
-    for(auto& feature : featureFrame) {
-        std::cout << "Feature ID: " << feature.first << std::endl;
-        for(auto& frame : feature.second) {
-            std::cout << "Camera ID: " << frame.first << ", ";
-            std::cout << "XYZ: " << frame.second(0) << ", " << frame.second(1) << ", " << frame.second(2) << ", ";
-            std::cout << "UV: " << frame.second(3) << ", " << frame.second(4) << ", ";
-            std::cout << "Velocity: " << frame.second(5) << ", " << frame.second(6) << std::endl;
-        }
-    }
     return featureFrame;
 }
 
@@ -138,114 +129,114 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 }
 
 // extract images with same timestamp from two topics
-// void sync_process()
-// {
-//     while(1)
-//     {
-//         if(STEREO)
-//         {
-//             cv::Mat image0, image1;
-//             std_msgs::msg::Header header;
-//             double time = 0;
-//             m_buf.lock();
-//             if (!img0_buf.empty() && !img1_buf.empty())
-//             {
-//                 double time0 = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
-//                 double time1 = img1_buf.front()->header.stamp.sec + img1_buf.front()->header.stamp.nanosec * (1e-9);
-
-//                 // 0.003s sync tolerance
-//                 if(time0 < time1 - 0.003)
-//                 {
-//                     img0_buf.pop();
-//                     printf("throw img0\n");
-//                 }
-//                 else if(time0 > time1 + 0.003)
-//                 {
-//                     img1_buf.pop();
-//                     printf("throw img1\n");
-//                 }
-//                 else
-//                 {
-//                     time = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
-//                     header = img0_buf.front()->header;
-//                     image0 = getImageFromMsg(img0_buf.front());
-//                     img0_buf.pop();
-//                     image1 = getImageFromMsg(img1_buf.front());
-//                     img1_buf.pop();
-//                     //printf("find img0 and img1\n");
-
-//                     // std::cout << std::fixed << img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9) << std::endl;
-//                     // assert(0);
-                    
-//                 }
-//             }
-//             m_buf.unlock();
-//             if(!image0.empty())
-//                 estimator.inputImage(time, image0, image1);
-//         }
-//         else
-//         {
-//             cv::Mat image;
-//             std_msgs::msg::Header header;
-//             double time = 0;
-//             m_buf.lock();
-//             if(!img0_buf.empty())
-//             {
-//                 time = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
-//                 header = img0_buf.front()->header;
-//                 image = getImageFromMsg(img0_buf.front());
-//                 img0_buf.pop();
-//             }
-//             m_buf.unlock();
-//             if(!image.empty())
-//                 estimator.inputImage(time, image);
-//         }
-
-//         std::chrono::milliseconds dura(2);
-//         std::this_thread::sleep_for(dura);
-//     }
-// }
-
-void sync_process() {
-    while(1) {
-        if(STEREO) {
+void sync_process()
+{
+    while(1)
+    {
+        if(STEREO)
+        {
+            cv::Mat image0, image1;
+            std_msgs::msg::Header header;
             double time = 0;
             m_buf.lock();
-            if(!feature0_buf.empty() && !feature1_buf.empty()) {
-                double time0 = feature0_buf.front()->header.stamp.sec + 
-                             feature0_buf.front()->header.stamp.nanosec * (1e-9);
-                double time1 = feature1_buf.front()->header.stamp.sec + 
-                             feature1_buf.front()->header.stamp.nanosec * (1e-9);
-                
-                if(abs(time0 - time1) < 0.06) {
-                    time = time0;
-                    auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
-                    // std::cout << "Frame : ";
-                    // for (const auto& pair : frame) {
-                    //     std::cout << "Key: " << pair.first << " Values: ";
-                    //     for (const auto& value : pair.second) {
-                    //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
-                    //     }
-                    // }
-                    // std::cout << std::endl;
-                    feature0_buf.pop();
-                    feature1_buf.pop();
-                    m_buf.unlock();
+            if (!img0_buf.empty() && !img1_buf.empty())
+            {
+                double time0 = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
+                double time1 = img1_buf.front()->header.stamp.sec + img1_buf.front()->header.stamp.nanosec * (1e-9);
+
+                // 0.003s sync tolerance
+                if(time0 < time1 - 0.003)
+                {
+                    img0_buf.pop();
+                    printf("throw img0\n");
+                }
+                else if(time0 > time1 + 0.003)
+                {
+                    img1_buf.pop();
+                    printf("throw img1\n");
+                }
+                else
+                {
+                    time = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
+                    header = img0_buf.front()->header;
+                    image0 = getImageFromMsg(img0_buf.front());
+                    img0_buf.pop();
+                    image1 = getImageFromMsg(img1_buf.front());
+                    img1_buf.pop();
+                    //printf("find img0 and img1\n");
+
+                    // std::cout << std::fixed << img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9) << std::endl;
+                    // assert(0);
                     
-                    if(!frame.empty()) {
-                        std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
-                        estimator.inputFrame2(time, frame);
-                    }
-                    continue;
                 }
             }
             m_buf.unlock();
-
+            if(!image0.empty())
+                estimator.inputImage(time, image0, image1);
         }
+        else
+        {
+            cv::Mat image;
+            std_msgs::msg::Header header;
+            double time = 0;
+            m_buf.lock();
+            if(!img0_buf.empty())
+            {
+                time = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
+                header = img0_buf.front()->header;
+                image = getImageFromMsg(img0_buf.front());
+                img0_buf.pop();
+            }
+            m_buf.unlock();
+            if(!image.empty())
+                estimator.inputImage(time, image);
+        }
+
         std::chrono::milliseconds dura(2);
         std::this_thread::sleep_for(dura);
     }
 }
+
+// void sync_process() {
+//     while(1) {
+//         if(STEREO) {
+//             double time = 0;
+//             m_buf.lock();
+//             if(!feature0_buf.empty() && !feature1_buf.empty()) {
+//                 double time0 = feature0_buf.front()->header.stamp.sec + 
+//                              feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 double time1 = feature1_buf.front()->header.stamp.sec + 
+//                              feature1_buf.front()->header.stamp.nanosec * (1e-9);
+                
+//                 if(abs(time0 - time1) < 0.06) {
+//                     time = time0;
+//                     auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+//                     // std::cout << "Frame : ";
+//                     // for (const auto& pair : frame) {
+//                     //     std::cout << "Key: " << pair.first << " Values: ";
+//                     //     for (const auto& value : pair.second) {
+//                     //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
+//                     //     }
+//                     // }
+//                     // std::cout << std::endl;
+//                     feature0_buf.pop();
+//                     feature1_buf.pop();
+//                     m_buf.unlock();
+                    
+//                     if(!frame.empty()) {
+//                         std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
+//                         estimator.inputFrame2(time, frame);
+//                     }
+//                     continue;
+//                 }
+//             }
+//             m_buf.unlock();
+
+//         }
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
 
 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)

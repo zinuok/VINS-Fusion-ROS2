@@ -213,21 +213,31 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     
 }
 
-void Estimator::inputFrame2(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>>& frame) {
+void Estimator::inputFrame2(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>>& featureFrame) {
     inputImageCnt++;
     std::cout << "ça run inputFrame2 ici" << std::endl;
     
+    for(auto& feature : featureFrame) {
+        std::cout << "Feature ID: " << feature.first << std::endl;
+        for(auto& frame : feature.second) {
+            std::cout << "Camera ID: " << frame.first << ", ";
+            std::cout << "XYZ: " << frame.second(0) << ", " << frame.second(1) << ", " << frame.second(2) << ", ";
+            std::cout << "UV: " << frame.second(3) << ", " << frame.second(4) << ", ";
+            std::cout << "Velocity: " << frame.second(5) << ", " << frame.second(6) << std::endl;
+        }
+    }
+
     if(MULTIPLE_THREAD) {     
         if(inputImageCnt % 2 == 0) {
             std::cout << "ça rentre dans le multiple thread de inputFrame2 ici" << std::endl;
             mBuf.lock();
-            featureBuf.push(make_pair(t, frame));
+            featureBuf.push(make_pair(t, featureFrame));
             mBuf.unlock();
         }
     }
     else {
         mBuf.lock();
-        featureBuf.push(make_pair(t, frame));
+        featureBuf.push(make_pair(t, featureFrame));
         mBuf.unlock();
         std::cout << "ça a process la mesure ici" << std::endl;
         processMeasurements();
