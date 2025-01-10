@@ -103,6 +103,6 @@ def generate_launch_description():
         LogInfo(msg=['[feature tracker launch] Config path: ', config_path]),
         # vins_estimator_node,
         # pose_graph_node,
-        # rviz_node,
+        rviz_node,
         feature_tracker_node
     ])
