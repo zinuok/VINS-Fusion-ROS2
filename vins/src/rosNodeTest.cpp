@@ -74,6 +74,35 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBuffersToFeature
     return featureFrame;
 }
 
+map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBufferToFeatureFrame2(
+    const sensor_msgs::msg::PointCloud::ConstPtr &cloud_msg)
+{
+    map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
+
+    for (size_t i = 0; i < cloud_msg->points.size(); i++)
+    {
+        // Récupérer l'ID de la feature
+        int feature_id = static_cast<int>(cloud_msg->channels[0].values[i]);
+
+        // Créer le vecteur 7D
+        Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+        xyz_uv_velocity << cloud_msg->points[i].x,         // x
+            cloud_msg->points[i].y,                        // y
+            cloud_msg->points[i].z,                        // z
+            cloud_msg->channels[1].values[i],              // u_of_point
+            cloud_msg->channels[2].values[i],              // v_of_point
+            cloud_msg->channels[3].values[i],              // velocity_x
+            cloud_msg->channels[4].values[i];              // velocity_y
+
+        // Associer à la caméra principale (ID = 0)
+        featureFrame[feature_id].emplace_back(0, xyz_uv_velocity);
+    }
+
+    return featureFrame;
+}
+
+
+
 // header: 1403715278
 void img0_callback(const sensor_msgs::msg::Image::SharedPtr img_msg)
 {
@@ -200,47 +229,194 @@ void sync_process()
 {
     while (1)
     {
-        if (STEREO)
+        cv::Mat image;
+        std_msgs::msg::Header header;
+        double time = 0;
+// 
+        // Accès au buffer pour récupérer une image monoculaire
+        m_buf.lock();
+        if (!img0_buf.empty())
         {
-            double time = 0;
-            m_buf.lock();
-            if (!feature0_buf.empty() && !feature1_buf.empty())
-            {
-                double time0 = feature0_buf.front()->header.stamp.sec +
-                               feature0_buf.front()->header.stamp.nanosec * (1e-9);
-                double time1 = feature1_buf.front()->header.stamp.sec +
-                               feature1_buf.front()->header.stamp.nanosec * (1e-9);
-
-                if (abs(time0 - time1) < 0.06)
-                {
-                    time = time0;
-                    auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
-                    // std::cout << "Frame : ";
-                    // for (const auto& pair : frame) {
-                    //     std::cout << "Key: " << pair.first << " Values: ";
-                    //     for (const auto& value : pair.second) {
-                    //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
-                    //     }
-                    // }
-                    // std::cout << std::endl;
-                    feature0_buf.pop();
-                    feature1_buf.pop();
-                    m_buf.unlock();
-
-                    if (!frame.empty())
-                    {
-                        std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
-                        estimator.inputFrame2(time, frame);
-                    }
-                    continue;
-                }
-            }
-            m_buf.unlock();
+            time = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
+            header = img0_buf.front()->header;
+            image = getImageFromMsg(img0_buf.front());
+            img0_buf.pop();
         }
+        m_buf.unlock();
+// 
+        // Si une image est disponible, la transmettre à l'estimateur
+        if (!image.empty())
+        {
+            estimator.inputImage(time, image);
+        }
+// 
+        // Pause pour éviter une boucle trop rapide
         std::chrono::milliseconds dura(2);
         std::this_thread::sleep_for(dura);
     }
 }
+// 
+
+// void sync_process()
+// {
+//     while (1)
+//     {
+//         if (STEREO)
+//         {
+//             double time = 0;
+//             m_buf.lock();
+//             if (!feature0_buf.empty() && !feature1_buf.empty())
+//             {
+//                 double time0 = feature0_buf.front()->header.stamp.sec +
+//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 double time1 = feature1_buf.front()->header.stamp.sec +
+//                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
+
+//                 if (abs(time0 - time1) < 0.06)
+//                 {
+//                     time = time0;
+//                     auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+//                     // std::cout << "Frame : ";
+//                     // for (const auto& pair : frame) {
+//                     //     std::cout << "Key: " << pair.first << " Values: ";
+//                     //     for (const auto& value : pair.second) {
+//                     //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
+//                     //     }
+//                     // }
+//                     // std::cout << std::endl;
+//                     feature0_buf.pop();
+//                     feature1_buf.pop();
+//                     m_buf.unlock();
+
+//                     if (!frame.empty())
+//                     {
+//                         std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
+//                         estimator.inputFrame2(time, frame);
+//                     }
+//                     continue;
+//                 }
+//             }
+//             m_buf.unlock();
+//         }
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
+
+// void sync_process()
+// {
+//     while (1)
+//     {
+//         if (STEREO)
+//         {
+//             double time = 0;
+//             m_buf.lock();
+//             if (!feature0_buf.empty() && !feature1_buf.empty())
+//             {
+//                 double time0 = feature0_buf.front()->header.stamp.sec +
+//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 double time1 = feature1_buf.front()->header.stamp.sec +
+//                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
+
+//                 if (abs(time0 - time1) < 0.06)
+//                 {
+//                     time = time0;
+//                     auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+//                     // std::cout << "Frame : ";
+//                     // for (const auto& pair : frame) {
+//                     //     std::cout << "Key: " << pair.first << " Values: ";
+//                     //     for (const auto& value : pair.second) {
+//                     //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
+//                     //     }
+//                     // }
+//                     // std::cout << std::endl;
+//                     feature0_buf.pop();
+//                     feature1_buf.pop();
+//                     m_buf.unlock();
+
+//                     if (!frame.empty())
+//                     {
+//                         std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
+//                         estimator.inputFrame2(time, frame);
+//                     }
+//                     continue;
+//                 }
+//             }
+//             m_buf.unlock();
+//         }
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
+
+
+// void sync_process()
+// {
+//     while (1)
+//     {
+//         double time = 0;
+//         m_buf.lock(); // Verrouiller l'accès au buffer
+//         if (!feature0_buf.empty()) // Vérifier si le buffer n'est pas vide
+//         {
+//             try
+//             {
+//                 // Récupérer le timestamp de la première feature dans le buffer
+//                 double time0 = feature0_buf.front()->header.stamp.sec +
+//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+
+//                 std::cout << "[sync_process] Timestamp de la feature : " << time0 << std::endl;
+//                 time = time0;
+
+//                 // Convertir les features du buffer en frame
+//                 auto frame = convertBufferToFeatureFrame2(feature0_buf.front());
+//                 std::cout << "[sync_process] Frame convertie, taille : " << frame.size() << std::endl;
+
+//                 // Retirer la feature du buffer
+//                 feature0_buf.pop();
+//                 m_buf.unlock(); // Déverrouiller le buffer
+
+//                 // Vérifier si la frame n'est pas vide
+//                 if (!frame.empty())
+//                 {
+//                     std::cout << "[sync_process] inputFrame2 déclenché avec le temps " << time << std::endl;
+
+//                     // Afficher le contenu de la frame pour vérification
+//                     for (const auto& [feature_id, feature_data] : frame)
+//                     {
+//                         std::cout << "  Feature ID: " << feature_id << ", Observations: " << feature_data.size() << std::endl;
+//                         for (const auto& [camera_id, data] : feature_data)
+//                         {
+//                             std::cout << "    Camera ID: " << camera_id << ", Data: " << data.transpose() << std::endl;
+//                         }
+//                     }
+
+//                     // Passer la frame à l'estimateur
+//                     estimator.inputFrame2(time, frame);
+//                 }
+//                 else
+//                 {
+//                     std::cout << "[sync_process] Frame vide. Aucune donnée transmise à l'estimateur." << std::endl;
+//                 }
+//             }
+//             catch (const std::exception& e)
+//             {
+//                 std::cerr << "[sync_process] Exception attrapée : " << e.what() << std::endl;
+//                 m_buf.unlock(); // Assurez-vous de déverrouiller en cas d'exception
+//             }
+//         }
+//         else
+//         {
+//             std::cout << "[sync_process] Buffer de features vide." << std::endl;
+//             m_buf.unlock(); // Déverrouiller si le buffer est vide
+//         }
+
+//         // Pause pour éviter une boucle trop rapide
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
+
+
 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
 {
