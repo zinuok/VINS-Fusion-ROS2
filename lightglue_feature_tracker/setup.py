@@ -35,6 +35,7 @@ setup(
     entry_points={
         'console_scripts': [
             'feature_tracker_node = lightglue_feature_tracker.feature_tracker_node:main',
+            'feature_tracker_node3 = lightglue_feature_tracker.feature_tracker_node2:main',
         ],
     },
 )

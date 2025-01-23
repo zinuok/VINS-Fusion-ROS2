@@ -73,11 +73,11 @@ class FeatureTracker(Node):
         self.feat_prev_order_to_id_window = []
 
         # extractor and matcher
-        self.extractor_max_num_keypoints = 700
+        self.extractor_max_num_keypoints = 500
         self.extractor = SuperPoint(max_num_keypoints=self.extractor_max_num_keypoints, nms_radius=4).eval().to(self.device)  # load the extractor
         self.matcher = LightGlue(features='superpoint').eval().to(self.device)  # load the matcher
 
-        self.target_n_features = 700
+        self.target_n_features = 500
         self.img_h = -1
         self.img_w = -1
 
@@ -86,6 +86,7 @@ class FeatureTracker(Node):
 
     def load_camera_config(self, cfg_path):
         self.get_logger().info("[feature_tracker] loading config from %s" % cfg_path)
+
 
         fs = cv2.FileStorage(cfg_path, cv2.FILE_STORAGE_READ)
         k1 = fs.getNode("distortion_parameters").getNode("k1").real()
