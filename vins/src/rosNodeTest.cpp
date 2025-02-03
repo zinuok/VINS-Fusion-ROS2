@@ -86,13 +86,13 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBufferToFeatureF
 
         // Créer le vecteur 7D
         Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
-        xyz_uv_velocity << cloud_msg->points[i].x,         // x
-            cloud_msg->points[i].y,                        // y
-            cloud_msg->points[i].z,                        // z
-            cloud_msg->channels[1].values[i],              // u_of_point
-            cloud_msg->channels[2].values[i],              // v_of_point
-            cloud_msg->channels[3].values[i],              // velocity_x
-            cloud_msg->channels[4].values[i];              // velocity_y
+        xyz_uv_velocity << cloud_msg->points[i].x, // x
+            cloud_msg->points[i].y,                // y
+            cloud_msg->points[i].z,                // z
+            cloud_msg->channels[1].values[i],      // u_of_point
+            cloud_msg->channels[2].values[i],      // v_of_point
+            cloud_msg->channels[3].values[i],      // velocity_x
+            cloud_msg->channels[4].values[i];      // velocity_y
 
         // Associer à la caméra principale (ID = 0)
         featureFrame[feature_id].emplace_back(0, xyz_uv_velocity);
@@ -100,8 +100,6 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> convertBufferToFeatureF
 
     return featureFrame;
 }
-
-
 
 // header: 1403715278
 void img0_callback(const sensor_msgs::msg::Image::SharedPtr img_msg)
@@ -172,7 +170,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //             {
 //                 double time0 = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
 //                 double time1 = img1_buf.front()->header.stamp.sec + img1_buf.front()->header.stamp.nanosec * (1e-9);
-
+// //
 //                 // 0.003s sync tolerance
 //                 if (time0 < time1 - 0.003)
 //                 {
@@ -193,7 +191,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //                     image1 = getImageFromMsg(img1_buf.front());
 //                     img1_buf.pop();
 //                     // printf("find img0 and img1\n");
-
+// //
 //                     // std::cout << std::fixed << img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9) << std::endl;
 //                     // assert(0);
 //                 }
@@ -219,7 +217,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //             if (!image.empty())
 //                 estimator.inputImage(time, image);
 //         }
-
+// //
 //         std::chrono::milliseconds dura(2);
 //         std::this_thread::sleep_for(dura);
 //     }
@@ -232,7 +230,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //         cv::Mat image;
 //         std_msgs::msg::Header header;
 //         double time = 0;
-// // 
+//         //
 //         // Accès au buffer pour récupérer une image monoculaire
 //         m_buf.lock();
 //         if (!img0_buf.empty())
@@ -243,19 +241,18 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //             img0_buf.pop();
 //         }
 //         m_buf.unlock();
-// // 
+//         //
 //         // Si une image est disponible, la transmettre à l'estimateur
 //         if (!image.empty())
 //         {
 //             estimator.inputImage(time, image);
 //         }
-// // 
+//         //
 //         // Pause pour éviter une boucle trop rapide
 //         std::chrono::milliseconds dura(2);
 //         std::this_thread::sleep_for(dura);
 //     }
 // }
-// 
 
 // void sync_process()
 // {
@@ -307,10 +304,10 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 // {
 //     while (1)
 //     {
-//         if (STEREO)
+//         double time = 0;
+//         m_buf.lock();
+//         try
 //         {
-//             double time = 0;
-//             m_buf.lock();
 //             if (!feature0_buf.empty() && !feature1_buf.empty())
 //             {
 //                 double time0 = feature0_buf.front()->header.stamp.sec +
@@ -318,79 +315,74 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //                 double time1 = feature1_buf.front()->header.stamp.sec +
 //                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
 
-//                 if (abs(time0 - time1) < 0.06)
-//                 {
-//                     time = time0;
-//                     auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
-//                     // std::cout << "Frame : ";
-//                     // for (const auto& pair : frame) {
-//                     //     std::cout << "Key: " << pair.first << " Values: ";
-//                     //     for (const auto& value : pair.second) {
-//                     //         std::cout << "(" << value.first << ", " << value.second.transpose() << ") "; // Affichez les valeurs selon vos besoins
-//                     //     }
-//                     // }
-//                     // std::cout << std::endl;
-//                     feature0_buf.pop();
-//                     feature1_buf.pop();
-//                     m_buf.unlock();
+//                 time = time0;
+//                 auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+//                 feature0_buf.pop();
+//                 feature1_buf.pop();
+//                 m_buf.unlock();
 
-//                     if (!frame.empty())
-//                     {
-//                         std::cout << "inputFrame2 a été déclenché avec le temps " << time << std::endl;
-//                         estimator.inputFrame2(time, frame);
-//                     }
-//                     continue;
+//                 if (!frame.empty())
+//                 {
+//                     estimator.inputFrame2(time, frame);
+//                 }
+//                 else
+//                 {
+//                     m_buf.unlock();
 //                 }
 //             }
+//             else
+//             {
+//                 m_buf.unlock();
+//             }
+//         }
+//         catch (const std::exception &e)
+//         {
 //             m_buf.unlock();
 //         }
+
 //         std::chrono::milliseconds dura(2);
 //         std::this_thread::sleep_for(dura);
 //     }
 // }
 
-
-void sync_process()
-{
-    while (1)
-    {
-        double time = 0;
-        m_buf.lock();
-        if (!feature0_buf.empty())
-        {
-            try
-            {
-                double time0 = feature0_buf.front()->header.stamp.sec +
-                               feature0_buf.front()->header.stamp.nanosec * (1e-9);
-                time = time0;
-
-                auto framedelightglue = convertBufferToFeatureFrame2(feature0_buf.front());
-
-                feature0_buf.pop();
-                m_buf.unlock();
-
-                if (!framedelightglue.empty())
-                {
-                    estimator.inputFrame2(time, framedelightglue);
-                }
-            }
-            catch (const std::exception& e)
-            {
-                m_buf.unlock();
-            }
-        }
-        else
-        {
-            m_buf.unlock();
-        }
-
-        std::chrono::milliseconds dura(2);
-        std::this_thread::sleep_for(dura);
-    }
-}
-
-
-
+// void sync_process()
+// {
+//     while (1)
+//     {
+//         double time = 0;
+//         m_buf.lock();
+//         if (!feature0_buf.empty())
+//         {
+//             try
+//             {
+//                 double time0 = feature0_buf.front()->header.stamp.sec +
+//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 time = time0;
+//                 //
+//                 auto framedelightglue = convertBufferToFeatureFrame2(feature0_buf.front());
+//                 //
+//                 feature0_buf.pop();
+//                 m_buf.unlock();
+//                 //
+//                 if (!framedelightglue.empty())
+//                 {
+//                     estimator.inputFrame2(time, framedelightglue);
+//                 }
+//             }
+//             catch (const std::exception &e)
+//             {
+//                 m_buf.unlock();
+//             }
+//         }
+//         else
+//         {
+//             m_buf.unlock();
+//         }
+//         //
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
 {

@@ -24,17 +24,17 @@ class FeatureTracker(Node):
         self.K = self.cfg["K"]
         self.dist_coeffs = self.cfg["dist_coeffs"]
 
-        self.image_pub0 = self.create_publisher(Image, "/feature_tracker/feature_img0", 10)
-        self.image_pub1 = self.create_publisher(Image, "/feature_tracker/feature_img1", 10)
-        self.pub_features0 = self.create_publisher(PointCloud, self.cfg["topic_features0"], 10)
-        self.pub_features1 = self.create_publisher(PointCloud, self.cfg["topic_features1"], 10)
-        self.matches_pub = self.create_publisher(Image, '/feature_tracker/stereo_matches_img', 10)
+        self.image_pub0 = self.create_publisher(Image, "/feature_tracker/feature_img0", 1000)
+        self.image_pub1 = self.create_publisher(Image, "/feature_tracker/feature_img1", 1000)
+        self.pub_features0 = self.create_publisher(PointCloud, self.cfg["topic_features0"], 1000)
+        self.pub_features1 = self.create_publisher(PointCloud, self.cfg["topic_features1"], 1000)
+        self.matches_pub = self.create_publisher(Image, '/feature_tracker/stereo_matches_img', 1000)
 
         self.subscriber0 = message_filters.Subscriber(self, Image, self.cfg["topic_images0"])
         self.subscriber1 = message_filters.Subscriber(self, Image, self.cfg["topic_images1"])
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.subscriber0, self.subscriber1],
-            queue_size=10,
+            queue_size=100,
             slop=0.1
         )
         self.ts.registerCallback(self.sync_callback)
@@ -66,7 +66,7 @@ class FeatureTracker(Node):
         self.feat_prev_order_to_id1 = np.zeros(self.extractor_max_num_keypoints) - 1
 
         self.next_feature_id = 0  
-        self.feat_obs_cnt = [0] * 20000
+        self.feat_obs_cnt = [0] * 10000
 
     def load_camera_config(self, cfg_path):
         self.get_logger().info("[feature_tracker] loading config from %s" % cfg_path)

@@ -20,6 +20,7 @@ from multiprocessing import Lock
 from multiprocessing.pool import Pool
 from multiprocessing import Manager
 from rclpy.node import Node
+import message_filters
 
 class FeatureTracker(Node):
     def __init__(self):
@@ -41,9 +42,18 @@ class FeatureTracker(Node):
         self.image_pub = self.create_publisher(Image, "/feature_tracker/feature_img0", 1000)
         self.pub_features = self.create_publisher(PointCloud, self.cfg["topic_features0"], 1000)
         self.use_compressed_input = False
-        if self.use_compressed_input:
-            self.subscriber = self.create_subscription(CompressedImage, self.cfg["topic_images0"], self.callback, 1000)
-        self.subscriber = self.create_subscription(Image, self.cfg["topic_images0"], self.callback, 1000)
+        # if self.use_compressed_input:
+        #     self.subscriber = self.create_subscription(CompressedImage, self.cfg["topic_images0"], self.callback, 1000)
+        # self.subscriber = self.create_subscription(Image, self.cfg["topic_images0"], self.callback, 1000)
+
+        self.subscriber = message_filters.Subscriber(self, Image, self.cfg["topic_images0"])
+        # self.subscriber1 = message_filters.Subscriber(self, Image, self.cfg["topic_images1"])
+        self.ts = message_filters.ApproximateTimeSynchronizer(
+            [self.subscriber],
+            queue_size=10,
+            slop=0.1
+        )
+        self.ts.registerCallback(self.sync_callback)
         self.bridge = CvBridge()
 
         # params
@@ -73,11 +83,11 @@ class FeatureTracker(Node):
         self.feat_prev_order_to_id_window = []
 
         # extractor and matcher
-        self.extractor_max_num_keypoints = 500
+        self.extractor_max_num_keypoints = 700
         self.extractor = SuperPoint(max_num_keypoints=self.extractor_max_num_keypoints, nms_radius=4).eval().to(self.device)  # load the extractor
         self.matcher = LightGlue(features='superpoint').eval().to(self.device)  # load the matcher
 
-        self.target_n_features = 500
+        self.target_n_features = 700
         self.img_h = -1
         self.img_w = -1
 
@@ -328,7 +338,7 @@ class FeatureTracker(Node):
         return matches_out
 
     
-    def callback(self, ros_data):
+    def sync_callback(self, ros_data):
         self.skip_n_curr += 1
         # self.get_logger().info("[feature_tracker] image received")
         if (self.skip_n_curr-1) % self.skip_n != 0:
@@ -394,6 +404,8 @@ class FeatureTracker(Node):
                     matches_p5 = matches_data_p5['matches'][0]
             else:
                 matches_data = self.matcher({'image0': self.feat_prev, 'image1': self.feat_curr})
+                # fake_inference_matcher = self.matcher({'image0': self.feat_prev, 'image1': self.feat_curr})
+                # fake_inference_matcher2 = self.matcher({'image0': self.feat_prev, 'image1': self.feat_curr})
                 time_match = time.time()
                 scores = matches_data['scores'][0]
                 matches = matches_data['matches'][0]

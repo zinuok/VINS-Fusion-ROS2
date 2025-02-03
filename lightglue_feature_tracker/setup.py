@@ -36,6 +36,9 @@ setup(
         'console_scripts': [
             'feature_tracker_node = lightglue_feature_tracker.feature_tracker_node:main',
             'feature_tracker_node3 = lightglue_feature_tracker.feature_tracker_node2:main',
+            'feature_tracker_node4 = lightglue_feature_tracker.feature_tracker_node3:main',
+            'feature_tracker_node5 = lightglue_feature_tracker.feature_tracker_node4:main',
+            'feature_tracker_node6 = lightglue_feature_tracker.feature_tracker_node5:main',
         ],
     },
 )
