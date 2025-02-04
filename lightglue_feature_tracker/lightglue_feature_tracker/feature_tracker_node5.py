@@ -22,6 +22,8 @@ class FeatureTracker(Node):
         self.cfg = self.load_camera_config(cfg_path)
         self.K = self.cfg["K"]
         self.dist_coeffs = self.cfg["dist_coeffs"]
+        self.K1 = self.cfg["K1"]  # Parameters for camera 1 (right)
+        self.dist_coeffs1 = self.cfg["dist_coeffs1"]
 
         self.image_pub0 = self.create_publisher(Image, "/feature_tracker/feature_img0", 10)
         self.image_pub1 = self.create_publisher(Image, "/feature_tracker/feature_img1", 10)
@@ -64,6 +66,8 @@ class FeatureTracker(Node):
 
     def load_camera_config(self, cfg_path):
         fs = cv2.FileStorage(cfg_path, cv2.FILE_STORAGE_READ)
+        
+        # Camera 0 (left) parameters
         k1 = fs.getNode("distortion_parameters").getNode("k1").real()
         k2 = fs.getNode("distortion_parameters").getNode("k2").real()
         p1 = fs.getNode("distortion_parameters").getNode("p1").real()
@@ -73,12 +77,27 @@ class FeatureTracker(Node):
         fy = fs.getNode("projection_parameters").getNode("fy").real()
         cx = fs.getNode("projection_parameters").getNode("cx").real()
         cy = fs.getNode("projection_parameters").getNode("cy").real()
+        K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]])
+        dist_coeffs = np.array([k1, k2, p1, p2, k3])
+        
+        # Camera 1 (right) parameters
+        k1_1 = fs.getNode("distortion_parameters1").getNode("k1").real()
+        k2_1 = fs.getNode("distortion_parameters1").getNode("k2").real()
+        p1_1 = fs.getNode("distortion_parameters1").getNode("p1").real()
+        p2_1 = fs.getNode("distortion_parameters1").getNode("p2").real()
+        k3_1 = 0.0
+        fx1 = fs.getNode("projection_parameters1").getNode("fx").real()
+        fy1 = fs.getNode("projection_parameters1").getNode("fy").real()
+        cx1 = fs.getNode("projection_parameters1").getNode("cx").real()
+        cy1 = fs.getNode("projection_parameters1").getNode("cy").real()
+        K1 = np.array([[fx1, 0, cx1], [0, fy1, cy1], [0, 0, 1.0]])
+        dist_coeffs1 = np.array([k1_1, k2_1, p1_1, p2_1, k3_1])
 
         return {
-            'K': np.array([[fx, 0, cx],
-                           [0, fy, cy],
-                           [0, 0, 1.0]]),
-            'dist_coeffs': np.array([k1, k2, p1, p2, k3]),
+            'K': K,
+            'dist_coeffs': dist_coeffs,
+            'K1': K1,
+            'dist_coeffs1': dist_coeffs1,
             'topic_images0': fs.getNode("topic_images0").string(),
             'topic_images1': fs.getNode("topic_images1").string(),
             'topic_features0': fs.getNode("topic_features0").string(),
@@ -94,14 +113,23 @@ class FeatureTracker(Node):
             raise ValueError(f'Not an image: {image.shape}')
         return torch.tensor(image / 255., dtype=torch.float)
 
-    def undistort_keypoints(self, keypoints):
-        points = cv2.undistortPoints(keypoints, self.K, self.dist_coeffs, None, None)
+    def undistort_keypoints(self, keypoints, K, dist_coeffs):
+        points = cv2.undistortPoints(keypoints, K, dist_coeffs, None, None)
         return points
 
     def publish_features(self, kpts_data, header, pub_features, topic):
         kpts_ids = np.array(kpts_data[:, 0]).astype(int)
         kpts = np.array(kpts_data[:, 1:3]).astype(np.float64)
-        kpts_undistorted = self.undistort_keypoints(kpts)[:, 0, :]
+        
+        # Select parameters based on the topic
+        if topic == self.cfg["topic_features1"]:
+            current_K = self.K1
+            current_dist_coeffs = self.dist_coeffs1
+        else:
+            current_K = self.K
+            current_dist_coeffs = self.dist_coeffs
+        
+        kpts_undistorted = self.undistort_keypoints(kpts, current_K, current_dist_coeffs)[:, 0, :]
         kpts_n_obs = kpts_data[:, 3]
 
         pc_msg = PointCloud()
@@ -231,16 +259,16 @@ class FeatureTracker(Node):
         self.feat_curr1 = self.extractor.extract(self.img_curr1)
 
         if self.cnt == 0:
-            # Première itération : on initialise avec la taille réelle des keypoints extraits
+            # Première itération : initialisation
             self.feat_prev0 = self.feat_curr0
             n_prev = self.feat_prev0['keypoints'][0].shape[0]
-            self.feat_prev_order_to_id0 = np.full((n_prev,), -1, dtype=int)
+            self.feat_prev_order_to_id0 = np.full(n_prev, -1, dtype=int)
             self.cnt_id0 = 0
         else:
-            # Avant le matching temporel, initialisation en fonction du nombre de keypoints actuels
             n_curr = self.feat_curr0['keypoints'][0].shape[0]
-            self.feat_curr_order_to_id0 = np.full((n_curr,), -1, dtype=int)
+            self.feat_curr_order_to_id0 = np.full(n_curr, -1, dtype=int)
 
+            # Matching temporel (gauche précédent vs gauche actuel)
             matches_data = self.matcher({'image0': self.feat_prev0, 'image1': self.feat_curr0})
             scores = matches_data['scores'][0]
             matches = matches_data['matches'][0]
@@ -249,11 +277,8 @@ class FeatureTracker(Node):
             for i_m, match in enumerate(matches):
                 prev_idx = match[0]
                 curr_idx = match[1]
-                # Vérification de l'index pour éviter un IndexError
                 if prev_idx >= len(self.feat_prev_order_to_id0):
-                    self.get_logger().warn(f"Index {prev_idx} hors bornes (max = {len(self.feat_prev_order_to_id0)-1}).")
-                    continue
-
+                    continue  # Éviter les index hors bornes
                 prev_feat_id = int(self.feat_prev_order_to_id0[prev_idx])
                 if prev_feat_id > -1:
                     self.feat_curr_order_to_id0[curr_idx] = prev_feat_id
@@ -265,40 +290,35 @@ class FeatureTracker(Node):
                         self.feat_obs_cnt0 += [0] * 1000
                     self.feat_obs_cnt0[self.cnt_id0] = 1
 
-            # ---- 2. Matching stéréo (entre image de gauche et image de droite) ----
+            # Matching stéréo (gauche actuel vs droite actuel)
             matches_data_lr = self.matcher({'image0': self.feat_curr0, 'image1': self.feat_curr1})
             scores_lr = matches_data_lr['scores'][0]
             matches_lr = matches_data_lr['matches'][0]
             points_curr1 = self.feat_curr1['keypoints'][0].detach().cpu().numpy()
 
-            # On ne retiendra que les points de gauche (et leur correspondant à droite) qui ont un ID (issu du matching temporel)
-            stereo_points_left = []   # pour l'image gauche
-            stereo_points_right = []  # pour l'image droite
+            stereo_points_left = []
+            stereo_points_right = []
 
             for i_m, match_lr in enumerate(matches_lr):
                 left_idx = match_lr[0]
                 right_idx = match_lr[1]
                 feat_id = int(self.feat_curr_order_to_id0[left_idx])
                 if feat_id > -1:
-                    # Si le point de gauche a bien un ID, on garde le match stéréo
                     left_coord = points_curr0[left_idx]
                     right_coord = points_curr1[right_idx]
                     score = scores_lr[i_m].detach().cpu().numpy()
                     stereo_points_left.append([feat_id, left_coord[0], left_coord[1], score])
                     stereo_points_right.append([feat_id, right_coord[0], right_coord[1], score])
 
-            # Si on a trouvé des points en stéréo, on les publie
             if len(stereo_points_left) > 1:
                 stereo_points_left = np.array(stereo_points_left, dtype=np.float32)
                 stereo_points_right = np.array(stereo_points_right, dtype=np.float32)
 
-                # Publication sur le topic des features de gauche
+                # Publication avec les paramètres appropriés
                 self.publish_features(stereo_points_left, ros_data0.header, self.pub_features0, self.cfg["topic_features0"])
-                # Publication sur le topic des features de droite
                 self.publish_features(stereo_points_right, ros_data1.header, self.pub_features1, self.cfg["topic_features1"])
 
-                # ----- Visualisation (facultatif) -----
-                # Pour l'image gauche
+                # Visualisation
                 img_matches0 = cv2.normalize(cv_image0, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 if len(img_matches0.shape) == 2:
                     img_matches0 = cv2.cvtColor(img_matches0, cv2.COLOR_GRAY2BGR)
@@ -308,7 +328,6 @@ class FeatureTracker(Node):
                     cv2.circle(img_matches0, (int(u), int(v)), 2, color, 2)
                 self.image_pub0.publish(self.bridge.cv2_to_imgmsg(img_matches0, encoding="bgr8"))
 
-                # Pour l'image droite
                 img_matches1 = cv2.normalize(cv_image1, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 if len(img_matches1.shape) == 2:
                     img_matches1 = cv2.cvtColor(img_matches1, cv2.COLOR_GRAY2BGR)
@@ -322,7 +341,6 @@ class FeatureTracker(Node):
         self.feat_prev0 = self.feat_curr0
         self.feat_prev_order_to_id0 = self.feat_curr_order_to_id0.copy()
         self.cnt += 1
-
 
 
 def main(args=None):

@@ -155,7 +155,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
     return img;
 }
 
-// extract images with same timestamp from two topics
+// // extract images with same timestamp from two topics
 // void sync_process()
 // {
 //     while (1)
@@ -170,7 +170,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //             {
 //                 double time0 = img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9);
 //                 double time1 = img1_buf.front()->header.stamp.sec + img1_buf.front()->header.stamp.nanosec * (1e-9);
-// //
+//                 //
 //                 // 0.003s sync tolerance
 //                 if (time0 < time1 - 0.003)
 //                 {
@@ -191,7 +191,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //                     image1 = getImageFromMsg(img1_buf.front());
 //                     img1_buf.pop();
 //                     // printf("find img0 and img1\n");
-// //
+//                     //
 //                     // std::cout << std::fixed << img0_buf.front()->header.stamp.sec + img0_buf.front()->header.stamp.nanosec * (1e-9) << std::endl;
 //                     // assert(0);
 //                 }
@@ -217,7 +217,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //             if (!image.empty())
 //                 estimator.inputImage(time, image);
 //         }
-// //
+//         //
 //         std::chrono::milliseconds dura(2);
 //         std::this_thread::sleep_for(dura);
 //     }
@@ -300,50 +300,50 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //     }
 // }
 
-// void sync_process()
-// {
-//     while (1)
-//     {
-//         double time = 0;
-//         m_buf.lock();
-//         try
-//         {
-//             if (!feature0_buf.empty() && !feature1_buf.empty())
-//             {
-//                 double time0 = feature0_buf.front()->header.stamp.sec +
-//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
-//                 double time1 = feature1_buf.front()->header.stamp.sec +
-//                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
-
-//                 time = time0;
-//                 auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
-//                 feature0_buf.pop();
-//                 feature1_buf.pop();
-//                 m_buf.unlock();
-
-//                 if (!frame.empty())
-//                 {
-//                     estimator.inputFrame2(time, frame);
-//                 }
-//                 else
-//                 {
-//                     m_buf.unlock();
-//                 }
-//             }
-//             else
-//             {
-//                 m_buf.unlock();
-//             }
-//         }
-//         catch (const std::exception &e)
-//         {
-//             m_buf.unlock();
-//         }
-
-//         std::chrono::milliseconds dura(2);
-//         std::this_thread::sleep_for(dura);
-//     }
-// }
+void sync_process()
+{
+    while (1)
+    {
+        double time = 0;
+        m_buf.lock();
+        try
+        {
+            if (!feature0_buf.empty() && !feature1_buf.empty())
+            {
+                double time0 = feature0_buf.front()->header.stamp.sec +
+                               feature0_buf.front()->header.stamp.nanosec * (1e-9);
+                double time1 = feature1_buf.front()->header.stamp.sec +
+                               feature1_buf.front()->header.stamp.nanosec * (1e-9);
+// 
+                time = time0;
+                auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+                feature0_buf.pop();
+                feature1_buf.pop();
+                m_buf.unlock();
+// 
+                if (!frame.empty())
+                {
+                    estimator.inputFrame2(time, frame);
+                }
+                else
+                {
+                    m_buf.unlock();
+                }
+            }
+            else
+            {
+                m_buf.unlock();
+            }
+        }
+        catch (const std::exception &e)
+        {
+            m_buf.unlock();
+        }
+// 
+        std::chrono::milliseconds dura(2);
+        std::this_thread::sleep_for(dura);
+    }
+}
 
 // void sync_process()
 // {
@@ -383,7 +383,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //         std::this_thread::sleep_for(dura);
 //     }
 // }
-
+// 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
 {
     // std::cout << "IMU cb" << std::endl;

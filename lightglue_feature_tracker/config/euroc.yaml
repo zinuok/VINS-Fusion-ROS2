@@ -26,6 +26,18 @@ projection_parameters:
    cx: 3.630e+02
    cy: 2.481e+02
 
+distortion_parameters1:
+   k1: -2.9294124381930947e-01
+   k2: 8.4798002331543665e-02
+   p1: -2.9984646536002372e-04
+   p2: 3.0028216325237329e-04
+projection_parameters1:
+   fx: 4.6009781682258682e+02
+   fy: 4.5890983492218902e+02
+   cx: 3.7314916359808268e+02
+   cy: 2.5440734973672119e+02
+
+
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.

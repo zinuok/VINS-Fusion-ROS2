@@ -30,8 +30,8 @@ def generate_launch_description():
     # Define the feature tracker node
     feature_tracker_node = Node(
         package='lightglue_feature_tracker',
-        executable='feature_tracker_node3',
-        name='lightglue_feature_tracker3',
+        executable='feature_tracker_node6',
+        name='lightglue_feature_tracker6',
         namespace='feature_tracker',
         output='screen',
         parameters=[{
