@@ -27,6 +27,7 @@ class FeatureTracker(Node):
 
         self.image_pub0 = self.create_publisher(Image, "/feature_tracker/feature_img0", 10)
         self.image_pub1 = self.create_publisher(Image, "/feature_tracker/feature_img1", 10)
+        self.image_pub_combined = self.create_publisher(Image, "/feature_tracker/feature_img", 10)
         self.pub_features0 = self.create_publisher(PointCloud, self.cfg["topic_features0"], 10)
         self.pub_features1 = self.create_publisher(PointCloud, self.cfg["topic_features1"], 10)
 
@@ -56,11 +57,11 @@ class FeatureTracker(Node):
         self.cnt_id0 = 0
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.extractor_max_num_keypoints = 1000
+        self.extractor_max_num_keypoints = 600
         self.extractor = SuperPoint(max_num_keypoints=self.extractor_max_num_keypoints, nms_radius=4).eval().to(self.device)
         self.matcher = LightGlue(features='superpoint').eval().to(self.device)
 
-        self.target_n_features = 1000
+        self.target_n_features = 600
         self.img_h = -1
         self.img_w = -1
 
@@ -179,71 +180,6 @@ class FeatureTracker(Node):
         try:
             cv_image0 = self.bridge.imgmsg_to_cv2(ros_data0)
             cv_image1 = self.bridge.imgmsg_to_cv2(ros_data1)
-        except:
-            return
-
-        if self.cnt == 0:
-            self.img_h, self.img_w = cv_image0.shape[:2]
-
-        self.img_curr0 = self.np_image_to_torch(cv_image0).to(self.device)
-        self.img_curr1 = self.np_image_to_torch(cv_image1).to(self.device)
-        self.feat_curr0 = self.extractor.extract(self.img_curr0)
-        self.feat_curr1 = self.extractor.extract(self.img_curr1)
-
-        if self.cnt == 1:
-            self.feat_prev_order_to_id0 = np.zeros(self.extractor_max_num_keypoints) - 1
-            self.cnt_id0 = 0
-
-        if self.cnt > 0:
-            matches_data = self.matcher({'image0': self.feat_prev0, 'image1': self.feat_curr0})
-            scores = matches_data['scores'][0]
-            matches = matches_data['matches'][0]
-            points_curr0 = self.feat_curr0['keypoints'][0].detach().cpu().numpy()
-            self.feat_curr_order_to_id0 = np.zeros(self.extractor_max_num_keypoints) - 1
-
-            matches = self.sort_matches(matches, scores)
-            cnt_plot0 = 0
-            points_to_plot0 = np.zeros((2000, 4)).astype(np.float32)
-
-            cnt_matches = 0
-            for i_m, match in enumerate(matches):
-                coords_curr0 = points_curr0[match[1]].astype(float)
-                feat_id = int(self.feat_prev_order_to_id0[match[0]])
-                if feat_id > -1:
-                    self.feat_curr_order_to_id0[match[1]] = feat_id
-                    self.feat_obs_cnt0[feat_id] += 1
-                    if self.feat_obs_cnt0[feat_id] > 2:
-                        score_match = scores[i_m].detach().cpu().numpy()
-                        points_to_plot0[cnt_plot0] = [feat_id, coords_curr0[0], coords_curr0[1], score_match]
-                        cnt_plot0 += 1
-                else:
-                    self.cnt_id0 += 1
-                    if self.cnt_id0 > len(self.feat_obs_cnt0) - 1:
-                        self.feat_obs_cnt0 += [0] * 1000
-                    feat_id = self.cnt_id0
-                    self.feat_curr_order_to_id0[match[1]] = feat_id
-                    self.feat_obs_cnt0[feat_id] = 1
-                cnt_matches += 1
-                if cnt_matches >= self.target_n_features:
-                    break
-
-            if cnt_plot0 > 1:
-                img_matches0 = cv2.normalize(cv_image0, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-                img_matches0 = cv2.cvtColor(img_matches0, cv2.COLOR_GRAY2BGR) if len(img_matches0.shape) == 2 else img_matches0
-                for i in range(cnt_plot0):
-                    feat_id = int(points_to_plot0[i, 0])
-                    coords = (int(points_to_plot0[i, 1]), int(points_to_plot0[i, 2]))
-                    color = (0, 0, 255) if self.feat_obs_cnt0[feat_id] > 16 else (0, 255, 0)
-                    cv2.circle(img_matches0, coords, 2, color, 2)
-                self.image_pub0.publish(self.bridge.cv2_to_imgmsg(img_matches0, encoding="bgr8"))
-
-    def sync_callback(self, ros_data0, ros_data1):
-        self.skip_n_curr += 1
-        if (self.skip_n_curr - 1) % self.skip_n != 0:
-            return
-        try:
-            cv_image0 = self.bridge.imgmsg_to_cv2(ros_data0)
-            cv_image1 = self.bridge.imgmsg_to_cv2(ros_data1)
         except Exception as e:
             self.get_logger().error(f"Conversion image error: {e}")
             return
@@ -296,6 +232,7 @@ class FeatureTracker(Node):
 
             stereo_points_left = []
             stereo_points_right = []
+            stereo_pairs = []
 
             for i_m, match_lr in enumerate(matches_lr):
                 left_idx = match_lr[0]
@@ -307,6 +244,7 @@ class FeatureTracker(Node):
                     score = scores_lr[i_m].detach().cpu().numpy()
                     stereo_points_left.append([feat_id, left_coord[0], left_coord[1], score])
                     stereo_points_right.append([feat_id, right_coord[0], right_coord[1], score])
+                    stereo_pairs.append((left_coord, right_coord, feat_id))
 
             if len(stereo_points_left) > 1:
                 stereo_points_left = np.array(stereo_points_left, dtype=np.float32)
@@ -315,24 +253,34 @@ class FeatureTracker(Node):
                 self.publish_features(stereo_points_left, ros_data0.header, self.pub_features0, self.cfg["topic_features0"])
                 self.publish_features(stereo_points_right, ros_data1.header, self.pub_features1, self.cfg["topic_features1"])
 
-                # Visualisation
+                # Create visualization images
                 img_matches0 = cv2.normalize(cv_image0, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 if len(img_matches0.shape) == 2:
                     img_matches0 = cv2.cvtColor(img_matches0, cv2.COLOR_GRAY2BGR)
-                for pt in stereo_points_left:
-                    feat_id, u, v, _ = pt
-                    color = (0, 0, 255) if self.feat_obs_cnt0[int(feat_id)] > 16 else (0, 255, 0)
-                    cv2.circle(img_matches0, (int(u), int(v)), 2, color, 2)
-                self.image_pub0.publish(self.bridge.cv2_to_imgmsg(img_matches0, encoding="bgr8"))
-
                 img_matches1 = cv2.normalize(cv_image1, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 if len(img_matches1.shape) == 2:
                     img_matches1 = cv2.cvtColor(img_matches1, cv2.COLOR_GRAY2BGR)
-                for pt in stereo_points_right:
-                    feat_id, u, v, _ = pt
-                    color = (0, 0, 255) if self.feat_obs_cnt0[int(feat_id)] > 16 else (0, 255, 0)
-                    cv2.circle(img_matches1, (int(u), int(v)), 2, color, 2)
+
+                # Create combined image with lines
+                combined_img = np.concatenate((img_matches0, img_matches1), axis=1)
+                
+                # Draw features and lines
+                for left_pt, right_pt, feat_id in stereo_pairs:
+                    color = (0, 0, 255) if self.feat_obs_cnt0[feat_id] > 16 else (0, 255, 0)
+                    u1, v1 = int(left_pt[0]), int(left_pt[1])
+                    u2, v2 = int(right_pt[0]), int(right_pt[1])
+                    
+                    # Draw circles
+                    cv2.circle(img_matches0, (u1, v1), 2, color, 2)
+                    cv2.circle(img_matches1, (u2, v2), 2, color, 2)
+                    
+                    # Draw line on combined image
+                    cv2.line(combined_img, (u1, v1), (u2 + self.img_w, v2), color, 1)
+
+                # Publish all images
+                self.image_pub0.publish(self.bridge.cv2_to_imgmsg(img_matches0, encoding="bgr8"))
                 self.image_pub1.publish(self.bridge.cv2_to_imgmsg(img_matches1, encoding="bgr8"))
+                self.image_pub_combined.publish(self.bridge.cv2_to_imgmsg(combined_img, encoding="bgr8"))
 
         self.img_prev0 = self.img_curr0
         self.feat_prev0 = self.feat_curr0

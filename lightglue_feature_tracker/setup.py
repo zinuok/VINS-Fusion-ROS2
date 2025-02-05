@@ -11,12 +11,13 @@ setup(
         'lightglue_feature_tracker.*'
     ]),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),  # Utilisation de glob pour récupérer tous les fichiers .launch.py
-        ('share/' + package_name + '/config', glob('config/*.yaml')),
-        ('share/' + package_name + '/lightglue', glob('lightglue_feature_tracker/lightglue/*.py')), 
+    ('share/ament_index/resource_index/packages',
+        ['resource/' + package_name]),
+    ('share/' + package_name, ['package.xml']),
+    ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
+    ('share/' + package_name + '/config', glob('config/*.yaml')),
+    ('share/' + package_name + '/config', glob('config/*.rviz')),
+    ('share/' + package_name + '/lightglue', glob('lightglue_feature_tracker/lightglue/*.py')), 
     ],
     install_requires=[
         'setuptools',
