@@ -20,9 +20,9 @@ class FeatureTracker(Node):
         self.declare_parameter('cam_config_file')
         cfg_path = self.get_parameter('cam_config_file').get_parameter_value().string_value
         self.cfg = self.load_camera_config(cfg_path)
-        self.K = self.cfg["K"]
+        self.K = self.cfg["K"]  # Parameters for the left camera
         self.dist_coeffs = self.cfg["dist_coeffs"]
-        self.K1 = self.cfg["K1"]  # Parameters for camera 1 (right)
+        self.K1 = self.cfg["K1"]  # Parameters for the right camera
         self.dist_coeffs1 = self.cfg["dist_coeffs1"]
 
         self.image_pub0 = self.create_publisher(Image, "/feature_tracker/feature_img0", 10)
@@ -67,7 +67,7 @@ class FeatureTracker(Node):
     def load_camera_config(self, cfg_path):
         fs = cv2.FileStorage(cfg_path, cv2.FILE_STORAGE_READ)
         
-        # Camera 0 (left) parameters
+        # Left parameters
         k1 = fs.getNode("distortion_parameters").getNode("k1").real()
         k2 = fs.getNode("distortion_parameters").getNode("k2").real()
         p1 = fs.getNode("distortion_parameters").getNode("p1").real()
@@ -80,7 +80,7 @@ class FeatureTracker(Node):
         K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]])
         dist_coeffs = np.array([k1, k2, p1, p2, k3])
         
-        # Camera 1 (right) parameters
+        # Right parameters
         k1_1 = fs.getNode("distortion_parameters1").getNode("k1").real()
         k2_1 = fs.getNode("distortion_parameters1").getNode("k2").real()
         p1_1 = fs.getNode("distortion_parameters1").getNode("p1").real()
@@ -121,7 +121,6 @@ class FeatureTracker(Node):
         kpts_ids = np.array(kpts_data[:, 0]).astype(int)
         kpts = np.array(kpts_data[:, 1:3]).astype(np.float64)
         
-        # Select parameters based on the topic
         if topic == self.cfg["topic_features1"]:
             current_K = self.K1
             current_dist_coeffs = self.dist_coeffs1
@@ -229,7 +228,6 @@ class FeatureTracker(Node):
                     break
 
             if cnt_plot0 > 1:
-                self.publish_features(points_to_plot0[:cnt_plot0], ros_data0.header, self.pub_features0, self.cfg["topic_features0"])
                 img_matches0 = cv2.normalize(cv_image0, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 img_matches0 = cv2.cvtColor(img_matches0, cv2.COLOR_GRAY2BGR) if len(img_matches0.shape) == 2 else img_matches0
                 for i in range(cnt_plot0):
@@ -247,7 +245,7 @@ class FeatureTracker(Node):
             cv_image0 = self.bridge.imgmsg_to_cv2(ros_data0)
             cv_image1 = self.bridge.imgmsg_to_cv2(ros_data1)
         except Exception as e:
-            self.get_logger().error(f"Erreur lors de la conversion d'image: {e}")
+            self.get_logger().error(f"Conversion image error: {e}")
             return
 
         if self.cnt == 0:
@@ -259,7 +257,7 @@ class FeatureTracker(Node):
         self.feat_curr1 = self.extractor.extract(self.img_curr1)
 
         if self.cnt == 0:
-            # Première itération : initialisation
+            # Initialisation
             self.feat_prev0 = self.feat_curr0
             n_prev = self.feat_prev0['keypoints'][0].shape[0]
             self.feat_prev_order_to_id0 = np.full(n_prev, -1, dtype=int)
@@ -268,7 +266,7 @@ class FeatureTracker(Node):
             n_curr = self.feat_curr0['keypoints'][0].shape[0]
             self.feat_curr_order_to_id0 = np.full(n_curr, -1, dtype=int)
 
-            # Matching temporel (gauche précédent vs gauche actuel)
+            # Temporal matching (only left)
             matches_data = self.matcher({'image0': self.feat_prev0, 'image1': self.feat_curr0})
             scores = matches_data['scores'][0]
             matches = matches_data['matches'][0]
@@ -278,7 +276,7 @@ class FeatureTracker(Node):
                 prev_idx = match[0]
                 curr_idx = match[1]
                 if prev_idx >= len(self.feat_prev_order_to_id0):
-                    continue  # Éviter les index hors bornes
+                    continue
                 prev_feat_id = int(self.feat_prev_order_to_id0[prev_idx])
                 if prev_feat_id > -1:
                     self.feat_curr_order_to_id0[curr_idx] = prev_feat_id
@@ -290,7 +288,7 @@ class FeatureTracker(Node):
                         self.feat_obs_cnt0 += [0] * 1000
                     self.feat_obs_cnt0[self.cnt_id0] = 1
 
-            # Matching stéréo (gauche actuel vs droite actuel)
+            # Stereo matching (left -> right)
             matches_data_lr = self.matcher({'image0': self.feat_curr0, 'image1': self.feat_curr1})
             scores_lr = matches_data_lr['scores'][0]
             matches_lr = matches_data_lr['matches'][0]
@@ -314,7 +312,6 @@ class FeatureTracker(Node):
                 stereo_points_left = np.array(stereo_points_left, dtype=np.float32)
                 stereo_points_right = np.array(stereo_points_right, dtype=np.float32)
 
-                # Publication avec les paramètres appropriés
                 self.publish_features(stereo_points_left, ros_data0.header, self.pub_features0, self.cfg["topic_features0"])
                 self.publish_features(stereo_points_right, ros_data1.header, self.pub_features1, self.cfg["topic_features1"])
 
