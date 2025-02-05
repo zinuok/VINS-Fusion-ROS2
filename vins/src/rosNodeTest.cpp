@@ -300,50 +300,50 @@ cv::Mat getImageFromMsg(const sensor_msgs::msg::Image::ConstPtr &img_msg)
 //     }
 // }
 
-void sync_process()
-{
-    while (1)
-    {
-        double time = 0;
-        m_buf.lock();
-        try
-        {
-            if (!feature0_buf.empty() && !feature1_buf.empty())
-            {
-                double time0 = feature0_buf.front()->header.stamp.sec +
-                               feature0_buf.front()->header.stamp.nanosec * (1e-9);
-                double time1 = feature1_buf.front()->header.stamp.sec +
-                               feature1_buf.front()->header.stamp.nanosec * (1e-9);
-// 
-                time = time0;
-                auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
-                feature0_buf.pop();
-                feature1_buf.pop();
-                m_buf.unlock();
-// 
-                if (!frame.empty())
-                {
-                    estimator.inputFrame2(time, frame);
-                }
-                else
-                {
-                    m_buf.unlock();
-                }
-            }
-            else
-            {
-                m_buf.unlock();
-            }
-        }
-        catch (const std::exception &e)
-        {
-            m_buf.unlock();
-        }
-// 
-        std::chrono::milliseconds dura(2);
-        std::this_thread::sleep_for(dura);
-    }
-}
+// void sync_process()
+// {
+//     while (1)
+//     {
+//         double time = 0;
+//         m_buf.lock();
+//         try
+//         {
+//             if (!feature0_buf.empty() && !feature1_buf.empty())
+//             {
+//                 double time0 = feature0_buf.front()->header.stamp.sec +
+//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 double time1 = feature1_buf.front()->header.stamp.sec +
+//                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
+// // 
+//                 time = time0;
+//                 auto frame = convertBuffersToFeatureFrame(feature0_buf.front(), feature1_buf.front());
+//                 feature0_buf.pop();
+//                 feature1_buf.pop();
+//                 m_buf.unlock();
+// // 
+//                 if (!frame.empty())
+//                 {
+//                     estimator.inputFrame2(time, frame);
+//                 }
+//                 else
+//                 {
+//                     m_buf.unlock();
+//                 }
+//             }
+//             else
+//             {
+//                 m_buf.unlock();
+//             }
+//         }
+//         catch (const std::exception &e)
+//         {
+//             m_buf.unlock();
+//         }
+// // 
+//         std::chrono::milliseconds dura(2);
+//         std::this_thread::sleep_for(dura);
+//     }
+// }
 
 // void sync_process()
 // {
@@ -351,17 +351,17 @@ void sync_process()
 //     {
 //         double time = 0;
 //         m_buf.lock();
-//         if (!feature0_buf.empty())
+//         if (!feature1_buf.empty())
 //         {
 //             try
 //             {
-//                 double time0 = feature0_buf.front()->header.stamp.sec +
-//                                feature0_buf.front()->header.stamp.nanosec * (1e-9);
+//                 double time0 = feature1_buf.front()->header.stamp.sec +
+//                                feature1_buf.front()->header.stamp.nanosec * (1e-9);
 //                 time = time0;
 //                 //
-//                 auto framedelightglue = convertBufferToFeatureFrame2(feature0_buf.front());
+//                 auto framedelightglue = convertBufferToFeatureFrame2(feature1_buf.front());
 //                 //
-//                 feature0_buf.pop();
+//                 feature1_buf.pop();
 //                 m_buf.unlock();
 //                 //
 //                 if (!framedelightglue.empty())
@@ -383,6 +383,180 @@ void sync_process()
 //         std::this_thread::sleep_for(dura);
 //     }
 // }
+
+void sync_process(bool STEREO, bool LK)
+{
+    while (true)
+    {
+        // Just a small sleep to avoid spinning too fast; 
+        // we'll do it once at the end of the loop.
+        // std::chrono::milliseconds dura(2);
+
+        if (LK)
+        {
+            // -------------------------------------------------------------
+            // 1) LK + Stereo
+            // -------------------------------------------------------------
+            if (STEREO)
+            {
+                cv::Mat image0, image1;
+                std_msgs::msg::Header header;
+                double time = 0;
+
+                m_buf.lock();
+                if (!img0_buf.empty() && !img1_buf.empty())
+                {
+                    double time0 = img0_buf.front()->header.stamp.sec +
+                                   img0_buf.front()->header.stamp.nanosec * 1e-9;
+                    double time1 = img1_buf.front()->header.stamp.sec +
+                                   img1_buf.front()->header.stamp.nanosec * 1e-9;
+
+                    // 0.003s sync tolerance
+                    if (time0 < time1 - 0.003)
+                    {
+                        img0_buf.pop();
+                        printf("throw img0\n");
+                    }
+                    else if (time0 > time1 + 0.003)
+                    {
+                        img1_buf.pop();
+                        printf("throw img1\n");
+                    }
+                    else
+                    {
+                        // Found a match
+                        time = time0;
+                        header = img0_buf.front()->header;
+                        image0 = getImageFromMsg(img0_buf.front());
+                        img0_buf.pop();
+                        image1 = getImageFromMsg(img1_buf.front());
+                        img1_buf.pop();
+                    }
+                }
+                m_buf.unlock();
+
+                if (!image0.empty())
+                {
+                    // Stereo with LK
+                    estimator.inputImage(time, image0, image1);
+                }
+            }
+            // -------------------------------------------------------------
+            // 2) LK + Monocular
+            // -------------------------------------------------------------
+            else
+            {
+                cv::Mat image;
+                std_msgs::msg::Header header;
+                double time = 0;
+
+                m_buf.lock();
+                if (!img0_buf.empty())
+                {
+                    time = img0_buf.front()->header.stamp.sec +
+                           img0_buf.front()->header.stamp.nanosec * 1e-9;
+                    header = img0_buf.front()->header;
+                    image = getImageFromMsg(img0_buf.front());
+                    img0_buf.pop();
+                }
+                m_buf.unlock();
+
+                if (!image.empty())
+                {
+                    // Monocular with LK
+                    estimator.inputImage(time, image);
+                }
+            }
+        }
+        else
+        {
+            // -------------------------------------------------------------
+            // 3) LightGlue + Stereo (with 0.06s tolerance)
+            // -------------------------------------------------------------
+            if (STEREO)
+            {
+                double time = 0;
+
+                m_buf.lock();
+                if (!feature0_buf.empty() && !feature1_buf.empty())
+                {
+                    double time0 = feature0_buf.front()->header.stamp.sec +
+                                   feature0_buf.front()->header.stamp.nanosec * 1e-9;
+                    double time1 = feature1_buf.front()->header.stamp.sec +
+                                   feature1_buf.front()->header.stamp.nanosec * 1e-9;
+
+                    time = time0;
+                    auto frame = convertBuffersToFeatureFrame(feature0_buf.front(),
+                                                                feature1_buf.front());
+                    feature0_buf.pop();
+                    feature1_buf.pop();
+                    m_buf.unlock();
+
+                    if (!frame.empty())
+                    {
+                        std::cout << "inputFrame2 triggered at time " << time << std::endl;
+                        // Stereo with LightGlue
+                        estimator.inputFrame2(time, frame);
+                    }
+                    // Skip the sleep here since we continue after processing
+                    std::chrono::milliseconds dura(2);
+                    std::this_thread::sleep_for(dura);
+                    continue;
+                }
+                m_buf.unlock();
+            }
+            // -------------------------------------------------------------
+            // 4) LightGlue + (Possibly Monocular or simply no time-check)
+            // -------------------------------------------------------------
+            else
+            {
+                double time = 0;
+                m_buf.lock();
+                try
+                {
+                    if (!feature0_buf.empty())
+                    {
+                        double time0 = feature0_buf.front()->header.stamp.sec +
+                                       feature0_buf.front()->header.stamp.nanosec * 1e-9;
+
+                        // We don't do the 0.06s check here—just read them
+                        time = time0;
+                        auto frame = convertBufferToFeatureFrame2(feature0_buf.front());
+                        feature0_buf.pop();
+
+                        // Unlock before using data
+                        m_buf.unlock();
+
+                        if (!frame.empty())
+                        {
+                            // LightGlue usage without time tolerance check
+                            estimator.inputFrame2(time, frame);
+                        }
+                        else
+                        {
+                            // If frame is empty for some reason
+                            m_buf.unlock();
+                        }
+                    }
+                    else
+                    {
+                        m_buf.unlock();
+                    }
+                }
+                catch (const std::exception &e)
+                {
+                    m_buf.unlock();
+                }
+            }
+        }
+
+        // Sleep to avoid running the loop too fast
+        std::chrono::milliseconds dura(2);
+        std::this_thread::sleep_for(dura);
+    }
+}
+
+
 // 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
 {
@@ -536,7 +710,14 @@ int main(int argc, char **argv)
     auto sub_imu_switch = n->create_subscription<std_msgs::msg::Bool>("/vins_imu_switch", rclcpp::QoS(rclcpp::KeepLast(100)), imu_switch_callback);
     auto sub_cam_switch = n->create_subscription<std_msgs::msg::Bool>("/vins_cam_switch", rclcpp::QoS(rclcpp::KeepLast(100)), cam_switch_callback);
 
-    std::thread sync_thread{sync_process};
+
+
+    bool stereo_enabled = true;
+    bool lk_enabled     = false;
+
+    std::thread sync_thread{[&]() {
+        sync_process(stereo_enabled, lk_enabled);
+    }};
     rclcpp::spin(n);
 
     return 0;
